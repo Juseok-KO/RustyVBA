@@ -12,3 +12,10 @@ version = "0.1.0"
 dependencies = [
  "core",
 ]
+
+[[package]]
+name = "from_vba"
+version = "0.1.0"
+dependencies = [
+ "core",
+]

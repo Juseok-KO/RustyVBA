@@ -2,9 +2,12 @@ use crate::Pointer;
 
 pub mod string;
 
+pub const VBA_ARRAY_MAXIMUM_SIZE: i32 = std::i32::MAX;
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TypeCode {
+    NullPtr = -1,
     None = 0,
     I8 = 1,
     I16 = 2,
@@ -50,6 +53,11 @@ impl Data {
     }
 
     pub fn get_type_from_ptr(pointer: *mut Pointer) -> TypeCode {
+
+        if pointer.is_null() {
+            return TypeCode::NullPtr
+        }
+
         let refr = unsafe {&*(pointer as *mut Data)};
         refr.get_type()
     }
@@ -96,22 +104,22 @@ impl Data {
         data.into_raw_pointer()
     }
 
-    pub fn get_arr_row(pointer: *const Pointer) -> Result<i64, String> {
+    pub fn get_arr_row(pointer: *const Pointer) -> Result<i32, String> {
         let refr = unsafe { &*(pointer as *const Data)};
         let Value::Array(arr) = &refr.d else {
             return Err(format!("Passed data is not an Array"))
         };
 
-        Ok(arr.len() as i64)
+        Ok(arr.len() as i32)
     }
 
-    pub fn get_arr_col(pointer: *const Pointer) -> Result<i64, String> {
+    pub fn get_arr_col(pointer: *const Pointer) -> Result<i32, String> {
         let refr = unsafe { &*(pointer as *const Data)};
         let Value::Array(arr) = &refr.d else {
             return Err(format!("Passed data is not an Array"))
         };
 
-        let Some(first_row) = arr.get(1) else {
+        let Some(first_row) = arr.get(0) else {
             return Err(format!("Failed to get the first row of the passed Array"))
         };
 
@@ -119,10 +127,10 @@ impl Data {
             return Err(format!("Passed data is not 2 dimensional Array"))
         };
 
-        Ok(first_row.len() as i64)
+        Ok(first_row.len() as i32)
     }
 
-    pub fn get_mut_ref_arr_element(pointer: *mut Pointer, row: i64, col: i64, _t: &()) -> Result<&mut Data, String> {
+    pub fn get_mut_ref_arr_element(pointer: *mut Pointer, row: i32, col: i32, _t: &()) -> Result<&mut Data, String> {
         let mut_ref = unsafe { &mut*(pointer as *mut Data) };
 
         let Value::Array(arr) = &mut mut_ref.d else {
@@ -143,13 +151,13 @@ impl Data {
         Ok(c)
     }
 
-    pub fn get_ptr_arr_element(pointer: *const Pointer, row: i64, col: i64) -> Result<*const Pointer, String> {
+    pub fn get_ptr_arr_element(pointer: *const Pointer, row: i32, col: i32) -> Result<*const Pointer, String> {
         let t = ();
         let refr = Data::get_ref_arr_element(pointer, row, col, &t)?;
         Ok(refr as *const Data as *const Pointer)
     }
 
-    pub fn get_ref_arr_element(pointer: *const Pointer, row: i64, col: i64, _t: &()) -> Result<&Data, String> {
+    pub fn get_ref_arr_element(pointer: *const Pointer, row: i32, col: i32, _t: &()) -> Result<&Data, String> {
         let refr = unsafe {&*(pointer as *mut Data) };
 
         let Value::Array(arr) = & refr.d else {
@@ -233,11 +241,11 @@ impl Data {
             return Err(format!("Passed value is not CSTRING: {:?}", refr.t))
         };
 
-        Ok(v.0.ptr as *const u8 as *const Pointer)
+        Ok(v.0.as_slice() as *const [u8] as *const u8 as *const Pointer)
     }
 
 
-    pub fn set_i8(pointer: *mut Pointer, row: i64, col: i64, val: i8) -> Result<(), String>{
+    pub fn set_i8(pointer: *mut Pointer, row: i32, col: i32, val: i8) -> Result<(), String>{
         let t = ();
         let mut_ref = Data::get_mut_ref_arr_element(pointer, row, col, &t)?;
         mut_ref.t = TypeCode::I8;
@@ -245,7 +253,7 @@ impl Data {
         Ok(())
     }
 
-    pub fn set_i16(pointer: *mut Pointer, row: i64, col: i64, val: i16) -> Result<(), String> {
+    pub fn set_i16(pointer: *mut Pointer, row: i32, col: i32, val: i16) -> Result<(), String> {
         let t = ();
         let mut_ref = Data::get_mut_ref_arr_element(pointer, row, col, &t)?;
         mut_ref.t = TypeCode::I16;
@@ -253,7 +261,7 @@ impl Data {
         Ok(())
     }
 
-    pub fn set_i32(pointer: *mut Pointer, row: i64, col: i64, val: i32) -> Result<(), String> {
+    pub fn set_i32(pointer: *mut Pointer, row: i32, col: i32, val: i32) -> Result<(), String> {
         let t = ();
         let mut_ref = Data::get_mut_ref_arr_element(pointer, row, col, &t)?;
         mut_ref.t = TypeCode::I32;
@@ -261,7 +269,7 @@ impl Data {
         Ok(())
     }
 
-    pub fn set_i64(pointer: *mut Pointer, row: i64, col: i64, val: i64) -> Result<(), String> {
+    pub fn set_i64(pointer: *mut Pointer, row: i32, col: i32, val: i64) -> Result<(), String> {
         let t = ();
         let mut_ref = Data::get_mut_ref_arr_element(pointer, row, col, &t)?;
         mut_ref.t = TypeCode::I64;
@@ -269,7 +277,7 @@ impl Data {
         Ok(())
     }
 
-    pub fn set_f32(pointer: *mut Pointer, row: i64, col: i64, val: f32) -> Result<(), String> {
+    pub fn set_f32(pointer: *mut Pointer, row: i32, col: i32, val: f32) -> Result<(), String> {
         let t = ();
         let mut_ref = Data::get_mut_ref_arr_element(pointer, row, col, &t)?;
         mut_ref.t = TypeCode::F32;
@@ -277,7 +285,7 @@ impl Data {
         Ok(())
     }
 
-    pub fn set_f64(pointer: *mut Pointer, row: i64, col: i64, val: f64) -> Result<(), String> {
+    pub fn set_f64(pointer: *mut Pointer, row: i32, col: i32, val: f64) -> Result<(), String> {
         let t = ();
         let mut_ref = Data::get_mut_ref_arr_element(pointer, row, col, &t)?;
         mut_ref.t = TypeCode::F64;
@@ -285,7 +293,7 @@ impl Data {
         Ok(())
     }
 
-    pub fn set_bool(pointer: *mut Pointer, row: i64, col: i64, val: bool) -> Result<(), String>{
+    pub fn set_bool(pointer: *mut Pointer, row: i32, col: i32, val: bool) -> Result<(), String>{
         let t = ();
         let mut_ref = Data::get_mut_ref_arr_element(pointer, row, col, &t)?;
         mut_ref.t = TypeCode::BOOL;
@@ -293,7 +301,7 @@ impl Data {
         Ok(())
     }
 
-    pub fn set_none(pointer: *mut Pointer, row: i64, col: i64) -> Result<(), String>{
+    pub fn set_none(pointer: *mut Pointer, row: i32, col: i32) -> Result<(), String>{
         let t = ();
         let mut_ref = Data::get_mut_ref_arr_element(pointer, row, col, &t)?;
         mut_ref.t = TypeCode::None;
