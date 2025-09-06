@@ -8,14 +8,6 @@ pub struct PtrVBAStr(*const u16);
 #[derive(Debug)]
 pub struct CSTRING(pub(crate) Vec<u8>);
 
-#[repr(C)]
-#[derive(Debug)]
-pub(crate) struct PtrRustCreatedCStr {
-    size: usize,
-    capacity: usize,
-    pub(crate) ptr: *const u8,
-}
-
 impl Iterator for PtrVBAStr {
     type Item = u16;
 
