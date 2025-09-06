@@ -309,6 +309,40 @@ impl Data {
         Ok(())
     }
 
+    /// The memeber array is rebuild from raw ponter; The caller never use the pointer_member_array afterward
+    pub fn set_array(pointer_collection_array: *mut Pointer, row: i32, col: i32, pointer_member_array: *mut Pointer) -> Result<(), String >{
+        let t = ();
+        let mut_ref = Data::get_mut_ref_arr_element(pointer_collection_array, row, col, &t)?;
+        mut_ref.t = TypeCode::ARRAY;
+        let recoverd_data= unsafe { Box::from_raw(pointer_member_array as *mut Data) };
+        mut_ref.d = recoverd_data.d;
+        Ok(())
+    }
+
+}
+
+#[test]
+fn array_setting_test() {
+
+    let array_1 = Data::from(vec![Data::from(vec![1, 2, 3])]).into_raw_pointer();
+    let array_2 = Data::from(vec![Data::from(vec![2.13, 5.44])]).into_raw_pointer();
+
+    let outer_array = Data::init_array(1, 2);
+    println!("{:?}", Data::set_array(outer_array, 0, 0, array_1));
+    println!("{:?}", Data::set_array(outer_array, 0, 1, array_2));
+
+    let outer_array = unsafe { Box::from_raw(outer_array as *mut Data)};
+    println!("recoverd array: {:?}", outer_array);
+
+    if let Value::Array(params) = &outer_array.d {
+        if let Some(outer_array_first_row) = params.get(0) {
+            if let Value::Array(params) = &outer_array_first_row.d {
+                for (idx, p) in params.iter().enumerate() {
+                    println!("idx: {}, p: {:?}", idx, p);
+                }
+            }
+        }
+    }
 }
 
 impl From<i8> for Data {
