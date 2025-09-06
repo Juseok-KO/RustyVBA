@@ -2,7 +2,7 @@ use crate::Pointer;
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct PtrCStr(*const u16);
+pub struct PtrVBAStr(*const u16);
 
 #[repr(C)]
 #[derive(Debug)]
@@ -16,7 +16,7 @@ pub(crate) struct PtrRustCreatedCStr {
     pub(crate) ptr: *const u8,
 }
 
-impl Iterator for PtrCStr {
+impl Iterator for PtrVBAStr {
     type Item = u16;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -35,7 +35,7 @@ impl Iterator for PtrCStr {
 
 pub fn copy_from_cstr(ptr_cstr: *const Pointer) -> Result<String, String> {
 
-    let ptr = PtrCStr(ptr_cstr as *const u16);
+    let ptr = PtrVBAStr(ptr_cstr as *const u16);
     String::from_utf16(ptr.into_iter().collect::<Vec<u16>>().as_ref())
     .map_err(|e| e.to_string())
 }
