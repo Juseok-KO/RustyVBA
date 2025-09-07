@@ -5,15 +5,14 @@ use core::datatype::string::CSTRING;
 
 /// It seems that VBA does not allow a function without any return value.
 #[unsafe(no_mangle)]
-pub extern "C" fn drop_data(ptr_data: *mut Pointer) -> i64 {
+pub extern "C" fn drop_data(ptr_data: *mut Pointer) -> bool {
 
     if ptr_data.is_null() {
-        0
+        true
     
     } else {
-        
         Data::drop(ptr_data);
-        0
+        true
     }
 }
 
@@ -63,7 +62,7 @@ pub extern "C" fn get_ptr_str(ptr_data: *const Pointer) -> *const Pointer {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn init_array(row: i64, col: i64) -> *mut Pointer {
+pub extern "C" fn init_array(row: i32, col: i32) -> *mut Pointer {
     Data::init_array(row, col)
 }
 
@@ -241,6 +240,67 @@ pub extern "C" fn arr_set_bool(ptr_arr: *mut Pointer, row: i32, col: i32, val: b
         }
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "C" fn arr_set_none(ptr_arr: *mut Pointer, row: i32, col: i32, ptr_result: *mut bool) -> *mut Pointer {
+
+    if ptr_arr.is_null() {
+        unsafe { *ptr_result = false };
+        return Data::from(CSTRING::from(format!("Null pointer detected"))).into_raw_pointer()
+    }
+
+    match Data::set_none(ptr_arr, row, col) {
+        Ok(_) => {
+            unsafe { *ptr_result = true };
+            return 0 as *mut Pointer
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn arr_set_str(ptr_arr: *mut Pointer, row: i32, col: i32, val: *const Pointer, ptr_result: *mut bool) -> *mut Pointer {
+
+    if ptr_arr.is_null() {
+        unsafe { *ptr_result = false };
+        return Data::from(CSTRING::from(format!("Null pointer detected"))).into_raw_pointer()
+    }
+
+    match Data::set_str(ptr_arr, row, col, val) {
+        Ok(_) => {
+            unsafe { *ptr_result = true };
+            return 0 as *mut Pointer
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn arr_set_arr(ptr_p_arr: *mut Pointer, row: i32, col: i32, ptr_m_arr: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+
+    if ptr_p_arr.is_null() {
+        unsafe { *ptr_result = false };
+        return Data::from(CSTRING::from(format!("Null pointer detected"))).into_raw_pointer()
+    }
+
+    match Data::set_array(ptr_p_arr, row, col, ptr_m_arr) {
+        Ok(_) => {
+            unsafe { *ptr_result = true };
+            return 0 as *mut Pointer
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    }
+}
+
 
 #[unsafe(no_mangle)]
 pub extern "C" fn get_elem_ptr(ptr_arr: *const Pointer, row:i32, col: i32, ptr_result: *mut bool) -> *const Pointer {
