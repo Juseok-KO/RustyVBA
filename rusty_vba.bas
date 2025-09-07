@@ -15,7 +15,7 @@ Const RUST_FALSE As Byte = 0
 
 
 Private Declare PtrSafe Function drop_data Lib "{}" ( _
-    ByVal ptr_data As LongPtr) As Boolean
+    ByVal ptr_data As LongPtr) As Byte
 
 Private Declare PtrSafe Function get_type Lib "{}" ( _
     ByVal ptr_data As LongPtr) As LongLong
@@ -46,8 +46,8 @@ Private Declare PtrSafe Function get_ptr_str Lib "{}" ( _
 ) As LongPtr
 
 Private Declare PtrSafe Function init_array Lib "{}" ( _
-    ByVal row As LongLong, _
-    ByVal col As LongLong _
+    ByVal row As Long, _
+    ByVal col As Long _
 ) As LongPtr
 
 Private Declare PtrSafe Function arr_num_rows Lib "{}" ( _
@@ -113,6 +113,29 @@ Private Declare PtrSafe Function arr_set_bool Lib "{}" ( _
     ByVal row As Long, _
     ByVal col As Long, _
     ByVal val As Byte, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function arr_set_none Lib "{}" ( _
+    ByVal ptr_arr As LongPtr, _
+    ByVal row As Long, _
+    ByVal col As Long, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function arr_set_str Lib "{}" ( _
+    ByVal ptr_arr As LongPtr, _
+    ByVal row As Long, _
+    ByVal col As Long, _
+    ByVal val As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function arr_set_arr Lib "{}" ( _
+    ByVal ptr_arr As LongPtr, _
+    ByVal row As Long, _
+    ByVal col As Long, _
+    ByVal val As LongPtr, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
@@ -263,5 +286,169 @@ Private Function ReadPtrData(ByVal ptr_data As LongPtr) As Variant
     End If
     
     ReadPtrData = value
+
+End Function
+
+Private Function ConvertVBACollectionRustArr(ByVal vba_collection As Variant) As LongPtr
+
+    Dim rust_arr_ptr As LongPtr
+    Dim num_rows As Long
+    Dim num_cols As Long
+    Dim vba_arr() As Variant
+    Dim set_result As Byte
+    
+    If TypeName(vba_collection) = "Range" Then
+        vba_arr = vba_collection.value
+        
+    ElseIf IsArray(vba_collection) Then
+        vba_arr = vba_collection
+        
+    Else
+        ConvertVBACollectionRustArr = 0
+        Exit Function
+        
+    num_rows = UBound(vba_arr, 1) - LBound(vba_arr, 1) + 1
+    num_cols = UBound(var_arr, 2) - LBound(var_arr, 2) + 1
+    
+    rust_arr_ptr = init_array(num_rows, num_cols)
+    
+    Dim cur_row As Long
+    Dim cur_col As Long
+    
+    For cur_row = 0 To num_rows - 1
+        For cur_col = 0 To num_cols - 1
+        
+            set_result = SetVBAValueToRustArr(rust_arr_ptr, cur_row, col_val, vba_arr(cur_row, cur_col))
+        
+        Next cur_col
+    Next cur_row
+    
+    ConvertVBACollectionRustArr = rust_arr_ptr
+
+
+End Function
+
+Private Function SetVBAValueToRustArr(ByVal ptr_rust_arr As LongPtr, ByVal row_idx As Long, ByVal col_idx, ByVal vb_val As Variant) As Byte
+
+    Dim error As Byte
+    Dim ptr_err As LongPtr
+    Dim ptr_err_msg As LongPtr
+    
+    error = RUST_TRUE
+    ptr_err = VarPtr(error)
+
+    If VarType(vb_val) = vbEmpty Then
+        ptr_err_msg = arr_set_none(ptr_rust_arr, row_idx, col_idx, ptr_err)
+               
+    ElseIf VarType(vb_val) = vbNull Then
+        ptr_err_msg = arr_set_none(ptr_rust_arr, row_idx, col_idx, ptr_err)
+    
+    ElseIf VarType(vb_val) = vbByte Then
+        ptr_err_msg = arr_set_i8(ptr_rust_arr, row_idx, col_idx, vb_val, ptr_err)
+        
+    ElseIf VarType(vb_val) = vbInteger Then
+        ptr_err_msg = arr_set_i16(ptr_rust_arr, row_idx, col_idx, vb_val, ptr_err)
+    
+    ElseIf VarType(vb_val) = vbLong Then
+        ptr_err_msg = arr_set_i32(ptr_rust_arr, row_idx, col_idx, vb_val, ptr_err)
+    
+    ElseIf VarType(vb_val) = vbLongLong Then
+        ptr_err_msg = arr_set_i64(ptr_rust_arr, row_idx, col_idx, vb_val, ptr_err)
+    
+    ElseIf VarType(vb_val) = vbSingle Then
+        ptr_err_msg = arr_set_f32(ptr_rust_arr, row_idx, col_idx, vb_val, ptr_err)
+        
+    ElseIf VarType(vb_val) = vbDouble Then
+        ptr_err_msg = arr_set_f64(ptr_rust_arr, row_idx, col_idx, vb_val, ptr_err)
+    
+    ElseIf VarType(vb_val) = vbString Then
+        ptr_err_msg = arr_set_str(ptr_rust_arr, row_idx, col_idx, StrPtr(vb_val), ptr_err)
+    
+    ElseIf VarType(vb_val) = vbBoolean Then
+        If vb_val = True Then
+            
+            ptr_err_msg = arr_set_bool(ptr_rust_arr, row_idx, col_idx, RUST_TRUE, ptr_err)
+        Else
+            
+            ptr_err_msg = arr_set_bool(ptr_rust_arr, row_idx, col_idx, RUST_FALSE, ptr_err)
+        End If
+        
+    ElseIf VarType(vb_val) = vbArray Then
+        Dim converted_arr As LongPtr
+        converted_arr = ConvertVBACollectionRustArr(vb_val)
+        ptr_err_msg = arr_set_arr(ptr_ruat_arr, row_idx, col_idx, converted_arr, ptr_err)
+        
+    Else
+        ptr_err_msg = arr_set_none(ptr_rust_arr, row_idx, col_idx, ptr_err)
+    
+    End If
+    
+    If error = RUST_FALSE Then
+    
+    Eles
+    
+    End If
+    
+    
+    SetVBAValueToRustArr = RUST_TRUE
+
+End Function
+
+
+Private Function IntoRustArgs(args() As Variant) As LongPtr
+    
+    Dim num_args As Long
+    Dim arg As Variant
+    Dim arg_idx As Long
+    Dim set_rsult As Byte
+    Dim ptr_rust_args As LongPtr
+    
+    num_args = UBound(args) - LBound(args) + 1
+    arg_idx = 0
+    set_result = RUST_TRUE
+    ptr_rust_args = init_array(1, num_args)
+    
+    For Each arg In args
+        MsgBox "arg" & TypeName(arg)
+        set_result = SetVBAValueToRustArr(ptr_rust_args, 0, arg_idx, arg)
+        
+        If set_result = RUST_FALSE Then
+            MsgBox "Failed to prepare args"
+            set_result = drop_data(ptr_rust_args)
+            IntoRustArgs = 0
+            Exit Function
+        
+        End If
+        
+        arg_idx = arg_idx + 1
+        
+    Next arg
+    
+    IntoRustArgs = ptr_rust_args
+    
+End Function
+
+Function ArbitraryNumArgsTest(ParamArray args() As Variant) As Variant
+    Dim ptr_rust_args As LongPtr
+    Dim result_from_rust As Variant
+    Dim vba_args() As Variant
+    Dim i As Long
+    
+    MsgBox " num args : " & UBound(args) - LBound(args) + 1
+    ReDim vba_args(LBound(args) To UBound(args))
+    For i = LBound(args) To UBound(args)
+        vba_args(i) = args(i)
+    Next i
+    
+    ptr_rust_args = IntoRustArgs(vba_args)
+    
+    If ptr_rust_args = 0 Then
+        ArbitraryNumArgsTest = "Failed to prepare Rust args"
+    Else
+        
+        
+        'ArbitraryNumArgsTest = ReadPtrData(
+    
+    End If
 
 End Function

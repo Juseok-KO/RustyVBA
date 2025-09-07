@@ -64,17 +64,8 @@ impl Data {
 
     pub fn drop(pointer: *mut Pointer) {
 
-        let recovered_val = unsafe { Box::from_raw(pointer as *mut Data )};
-
-        match recovered_val.d {
-            Value::CSTRING(cstr) => {
-                let _recovered_string = crate::datatype::string::CSTRING::into_string(cstr);
-                #[cfg(debug_assertions)] {
-                    println!("_recovered_string: {:?}", _recovered_string);
-                }
-            }
-            _ => {}
-        }
+        let _recovered_val = unsafe { Box::from_raw(pointer as *mut Data )};
+        println!("data dropped");
     }
 
     pub fn is_none(pointer: *mut Pointer) -> bool {
@@ -93,7 +84,7 @@ impl Data {
         Ok(v)
     }
 
-    pub fn init_array(row: i64, col: i64) -> *mut Pointer {
+    pub fn init_array(row: i32, col: i32) -> *mut Pointer {
 
         let allocated_memory = (0..row).into_iter().map(|_r| {
             (0..col).into_iter().map(|_c| Data {t: TypeCode::None, d: Value::None})
@@ -306,6 +297,15 @@ impl Data {
         let mut_ref = Data::get_mut_ref_arr_element(pointer, row, col, &t)?;
         mut_ref.t = TypeCode::None;
         mut_ref.d = Value::None;
+        Ok(())
+    }
+
+    pub fn set_str(pointer: *mut Pointer, row: i32, col: i32, str_vb_str: *const Pointer) -> Result<(), String> {
+        let t = ();
+        let rust_str = string::CSTRING::from(string::copy_from_cstr(str_vb_str)?);
+        let mut_ref = Data::get_mut_ref_arr_element(pointer, row, col, &t)?;
+        mut_ref.t = TypeCode::CSTRING;
+        mut_ref.d = Value::CSTRING(rust_str);
         Ok(())
     }
 
