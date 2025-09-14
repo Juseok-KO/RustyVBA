@@ -7,10 +7,25 @@ name = "core"
 version = "0.1.0"
 
 [[package]]
+name = "dll_interface"
+version = "0.1.0"
+dependencies = [
+ "core",
+]
+
+[[package]]
 name = "dll_loader"
 version = "0.1.0"
 dependencies = [
  "core",
+]
+
+[[package]]
+name = "example_dll"
+version = "0.1.0"
+dependencies = [
+ "core",
+ "dll_interface",
 ]
 
 [[package]]

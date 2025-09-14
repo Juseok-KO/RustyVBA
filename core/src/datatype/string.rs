@@ -41,8 +41,15 @@ impl From<String> for CSTRING {
 }
 
 impl CSTRING {
-    pub(crate) fn into_string(self) -> Result<String, String> {
+    pub fn into_string(self) -> Result<String, String> {
         let mut vector = self.0;
+        vector.pop();
+        String::from_utf8(vector)
+        .map_err(|e| e.to_string())
+    }
+
+    pub fn get_string(&self) -> Result<String, String> {
+        let mut vector = self.0.iter().map(|b| *b).collect::<Vec<u8>>();
         vector.pop();
         String::from_utf8(vector)
         .map_err(|e| e.to_string())

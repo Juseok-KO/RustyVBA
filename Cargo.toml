@@ -1,5 +1,5 @@
 [workspace]
 members = [
-    "core", 
-    "dll_loader", "from_vba",
+    "core", "dll_interface", 
+    "dll_loader", "example_dll", "from_vba",
 ]

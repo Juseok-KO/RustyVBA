@@ -20,6 +20,24 @@ pub enum TypeCode {
     ARRAY = 9,
 }
 
+impl ToString for TypeCode {
+    fn to_string(&self) -> String {
+        match self {
+            TypeCode::NullPtr => String::from("NullPtr"),
+            TypeCode::None => String::from("None"),
+            TypeCode::I8 => String::from("I8"),
+            TypeCode::I16 => String::from("I16"),
+            TypeCode::I32 => String::from("I32"),
+            TypeCode::I64 => String::from("I64"),
+            TypeCode::F32 => String::from("F32"),
+            TypeCode::F64 => String::from("F64"),
+            TypeCode::BOOL => String::from("BOOL"),
+            TypeCode::CSTRING => String::from("String"),
+            TypeCode::ARRAY => String::from("Array"),
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug)]
 pub enum Value {
@@ -50,6 +68,10 @@ impl Data {
 
     pub fn get_type(&self) -> TypeCode {
         self.t
+    }
+
+    pub fn get_value(&self) -> &Value {
+        &self.d
     }
 
     pub fn get_type_from_ptr(pointer: *mut Pointer) -> TypeCode {
