@@ -347,13 +347,13 @@ Private Function ConvertVBACollectionRustArr(ByVal vba_collection As Variant) As
         cur_col = 0
         For c = LBound(vba_arr, 2) To UBound(vba_arr, 2)
         
-            set_result = SetVBAValueToRustArr(rust_arr_ptr, cur_row, col_val, vba_arr(r, c))
+            set_result = SetVBAValueToRustArr(rust_arr_ptr, cur_row, cur_col, vba_arr(r, c))
         
         cur_col = cur_col + 1
-        Next cur_col
+        Next c
 
         cur_row = cur_row + 1
-    Next cur_row
+    Next r
     
     ConvertVBACollectionRustArr = rust_arr_ptr
 
