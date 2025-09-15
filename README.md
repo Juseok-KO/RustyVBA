@@ -1,16 +1,16 @@
 # RustyVBA
-Interface for calling Rust functions from Excel sheets.
+Interface for Calling Rust Functions from Excel Sheets
 
-It is composed of mainly following four parts:
-1. (core) Common datatype that both Rust and VBA can understand.
-2. (from_vba) Dynamic library to be loaded from VBA code.
-3. (vba_script_generator) VBA code that loads the dynamic library and defines some VBA functions to communicate with the loaded library.
-4. (dll_interface) An interface that allows Rust developers to write functions in Rust for the Excel.
+This project enables seamless intergration between Rust and Excel via VBA. It consists of four main components:
+core : Defines common datatypes that can be understood by both Rust and VBA.
+from_vba : A dynamic library that can be loaded from VBA code.
+vba_script_generator : Generates VBA script that load the dynamic library and define functions to communicate with it.
+dll_interface : Provides an interface for Rust developers to write functions that can be called from Excel.
 
-How to start
+Getting Started
 
-1. Compile the "from_vba" into the dynamic library.
-2. Place the compiled dynamic library to any directory, and create a folder where custom dlls would be placed.
-3. Create VBA script using "vba_script_generator": It will ask for the directories for the dynamic library and folder.
-4. Import the script from Excel.
-5. Create custom functions in the form of .dll and place them into the specified folder.
+1. Compile the `from_vba` crate into a dynamic libarary.
+2. Place the compiled library in any directory, and create a folder where custom DLLs will be stored.
+3. Generate the VBA script using `vba_script_generator`. It will prompt you to specify the paths to the dynamic library and the DLL folder.
+4. Import the generated script into Excel.
+5. Create custom functions in Rust, compile them into `.dll` files, and place them in the specified folder.
