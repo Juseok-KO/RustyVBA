@@ -151,7 +151,6 @@ Private Declare PtrSafe Function MultiByteToWideChar Lib "kernel32" ( _
         ByVal lpMultiByteStr As LongPtr, ByVal cbMultiByte As Long, _
         ByVal lpWideCharStr As LongPtr, ByVal cchWideChar As Long) As Long
 
-
 Private Function CStringToVBAString(ByVal cStrPtr As LongPtr) As String
     Dim charsNeeded As Long
     Dim result As String
@@ -237,8 +236,6 @@ Private Function ReadPtrData(ByVal ptr_data As LongPtr) As Variant
     Dim rust_bool As Byte
     dtype = get_type(ptr_data)
     
-    MsgBox "dtype: " & dtype
-    
     If dtype = TYPE_NULL_PTR Then
         value = "!Null Pointer detected"
     
@@ -280,7 +277,7 @@ Private Function ReadPtrData(ByVal ptr_data As LongPtr) As Variant
             value = False
         End If
         
-    ElseIf dtype = TYPE_ARR Then
+    ElseIf dtype = TYPE_ARRAY Then
         value = CreateArrayFromPointer(ptr_data)
         
     End If
@@ -324,7 +321,6 @@ Private Function ConvertVBACollectionRustArr(ByVal vba_collection As Variant) As
     Next cur_row
     
     ConvertVBACollectionRustArr = rust_arr_ptr
-
 
 End Function
 
@@ -384,16 +380,14 @@ Private Function SetVBAValueToRustArr(ByVal ptr_rust_arr As LongPtr, ByVal row_i
     End If
     
     If error = RUST_FALSE Then
-    
-    Eles
-    
+        
+        SetVBAValueToRustArr = RUST_FALSE
+    Else
+        
+        SetVBAValueToRustArr = RUST_TRUE
     End If
-    
-    
-    SetVBAValueToRustArr = RUST_TRUE
-
+        
 End Function
-
 
 Private Function IntoRustArgs(args() As Variant) As LongPtr
     
@@ -409,11 +403,9 @@ Private Function IntoRustArgs(args() As Variant) As LongPtr
     ptr_rust_args = init_array(1, num_args)
     
     For Each arg In args
-        MsgBox "arg" & TypeName(arg)
         set_result = SetVBAValueToRustArr(ptr_rust_args, 0, arg_idx, arg)
         
         If set_result = RUST_FALSE Then
-            MsgBox "Failed to prepare args"
             set_result = drop_data(ptr_rust_args)
             IntoRustArgs = 0
             Exit Function
@@ -428,6 +420,8 @@ Private Function IntoRustArgs(args() As Variant) As LongPtr
     
 End Function
 
+
+'To be converted into production code that extracts a pointer to function called call_func from given dll
 Function ArbitraryNumArgsTest(ParamArray args() As Variant) As Variant
     Dim ptr_rust_args As LongPtr
     Dim result_from_rust As Variant
@@ -444,11 +438,57 @@ Function ArbitraryNumArgsTest(ParamArray args() As Variant) As Variant
     
     If ptr_rust_args = 0 Then
         ArbitraryNumArgsTest = "Failed to prepare Rust args"
+    
     Else
         
+        Dim ptr_func_result As LongPtr
+        Dim drop_result As Byte
+        ptr_func_result = CallDllFuncTest(ptr_rust_args)
+        drop_result = drop_data(ptr_rust_args)
         
-        'ArbitraryNumArgsTest = ReadPtrData(
-    
+        ArbitraryNumArgsTest = ReadPtrData(ptr_func_result)
+        drop_result = drop_data(ptr_func_result)
+        
     End If
+
+End Function
+
+'To be converted into Production code that extract a pointer to function called note from given dll
+Function NoteTest() As Variant
+
+    Dim ptr_note As LongPtr
+    Dim result As Variant
+    Dim drop_result As Byte
+    
+    ptr_note = note()
+    result = ReadPtrData(ptr_note)
+    drop_result = drop_data(ptr_note)
+    
+    NoteTest = result
+    
+End Function
+
+'To be converted into production code that extracts a pointer ot function called args_info from given dll
+Function ArgInfoTest() As Variant
+
+    Dim ptr_info As LongPtr
+    Dim result As Variant
+    Dim drop_result As Byte
+    
+    ptr_info = args_info()
+    result = ReadPtrData(ptr_info)
+    drop_result = drop_data(ptr_info)
+    
+    ArgInfoTest = result
+    
+End Function
+
+Function CallDllFuncTest(ByVal ptr_args As LongPtr) As LongPtr
+    
+    Dim error As Byte
+    Dim ptr_err As LongPtr
+    
+    ptr_err = VarPtr(error)
+    CallDllFuncTest = call_func(ptr_args, ptr_err)
 
 End Function
