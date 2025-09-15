@@ -13,54 +13,55 @@ Const TYPE_ARRAY As LongLong = 9
 Const RUST_TRUE As Byte = 1
 Const RUST_FALSE As Byte = 0
 
+Const DLL_DIR_ROOT As String = "{DLL_ROOT}"
 
-Private Declare PtrSafe Function drop_data Lib "{}" ( _
+Private Declare PtrSafe Function drop_data Lib "{INTERFACE}" ( _
     ByVal ptr_data As LongPtr) As Byte
 
-Private Declare PtrSafe Function get_type Lib "{}" ( _
+Private Declare PtrSafe Function get_type Lib "{INTERFACE}" ( _
     ByVal ptr_data As LongPtr) As LongLong
     
-Private Declare PtrSafe Function get_i8 Lib "{}" ( _
+Private Declare PtrSafe Function get_i8 Lib "{INTERFACE}" ( _
     ByVal ptr_data As LongPtr) As Byte
     
-Private Declare PtrSafe Function get_i16 Lib "{}" ( _
+Private Declare PtrSafe Function get_i16 Lib "{INTERFACE}" ( _
     ByVal ptr_data As LongPtr) As Integer
     
-Private Declare PtrSafe Function get_i32 Lib "{}" ( _
+Private Declare PtrSafe Function get_i32 Lib "{INTERFACE}" ( _
     ByVal ptr_data As LongPtr) As Long
 
-Private Declare PtrSafe Function get_i64 Lib "{}" ( _
+Private Declare PtrSafe Function get_i64 Lib "{INTERFACE}" ( _
     ByVal ptr_data As LongPtr) As LongLong
 
-Private Declare PtrSafe Function get_f32 Lib "{}" ( _
+Private Declare PtrSafe Function get_f32 Lib "{INTERFACE}" ( _
     ByVal ptr_data As LongPtr) As Single
     
-Private Declare PtrSafe Function get_f64 Lib "{}" ( _
+Private Declare PtrSafe Function get_f64 Lib "{INTERFACE}" ( _
     ByVal ptr_data As LongPtr) As Double
 
-Private Declare PtrSafe Function get_bool Lib "{}" ( _
+Private Declare PtrSafe Function get_bool Lib "{INTERFACE}" ( _
     ByVal ptr_data As LongPtr) As Byte
 
-Private Declare PtrSafe Function get_ptr_str Lib "{}" ( _
+Private Declare PtrSafe Function get_ptr_str Lib "{INTERFACE}" ( _
     ByVal PtrRustStr As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function init_array Lib "{}" ( _
+Private Declare PtrSafe Function init_array Lib "{INTERFACE}" ( _
     ByVal row As Long, _
     ByVal col As Long _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_num_rows Lib "{}" ( _
+Private Declare PtrSafe Function arr_num_rows Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_num_cols Lib "{}" ( _
+Private Declare PtrSafe Function arr_num_cols Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_set_i8 Lib "{}" ( _
+Private Declare PtrSafe Function arr_set_i8 Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal row As Long, _
     ByVal col As Long, _
@@ -68,7 +69,7 @@ Private Declare PtrSafe Function arr_set_i8 Lib "{}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_set_i16 Lib "{}" ( _
+Private Declare PtrSafe Function arr_set_i16 Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal row As Long, _
     ByVal col As Long, _
@@ -76,7 +77,7 @@ Private Declare PtrSafe Function arr_set_i16 Lib "{}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_set_i32 Lib "{}" ( _
+Private Declare PtrSafe Function arr_set_i32 Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal row As Long, _
     ByVal col As Long, _
@@ -84,7 +85,7 @@ Private Declare PtrSafe Function arr_set_i32 Lib "{}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_set_i64 Lib "{}" ( _
+Private Declare PtrSafe Function arr_set_i64 Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal row As Long, _
     ByVal col As Long, _
@@ -92,7 +93,7 @@ Private Declare PtrSafe Function arr_set_i64 Lib "{}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_set_f32 Lib "{}" ( _
+Private Declare PtrSafe Function arr_set_f32 Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal row As Long, _
     ByVal col As Long, _
@@ -100,7 +101,7 @@ Private Declare PtrSafe Function arr_set_f32 Lib "{}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_set_f64 Lib "{}" ( _
+Private Declare PtrSafe Function arr_set_f64 Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal row As Long, _
     ByVal col As Long, _
@@ -108,7 +109,7 @@ Private Declare PtrSafe Function arr_set_f64 Lib "{}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_set_bool Lib "{}" ( _
+Private Declare PtrSafe Function arr_set_bool Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal row As Long, _
     ByVal col As Long, _
@@ -116,22 +117,14 @@ Private Declare PtrSafe Function arr_set_bool Lib "{}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_set_none Lib "{}" ( _
+Private Declare PtrSafe Function arr_set_none Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal row As Long, _
     ByVal col As Long, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function arr_set_str Lib "{}" ( _
-    ByVal ptr_arr As LongPtr, _
-    ByVal row As Long, _
-    ByVal col As Long, _
-    ByVal val As LongPtr, _
-    ByVal ptr_result As LongPtr _
-) As LongPtr
-
-Private Declare PtrSafe Function arr_set_arr Lib "{}" ( _
+Private Declare PtrSafe Function arr_set_str Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal row As Long, _
     ByVal col As Long, _
@@ -139,7 +132,15 @@ Private Declare PtrSafe Function arr_set_arr Lib "{}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function get_elem_ptr Lib "{}" ( _
+Private Declare PtrSafe Function arr_set_arr Lib "{INTERFACE}" ( _
+    ByVal ptr_arr As LongPtr, _
+    ByVal row As Long, _
+    ByVal col As Long, _
+    ByVal val As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function get_elem_ptr Lib "{INTERFACE}" ( _
     ByVal ptr_arr As LongPtr, _
     ByVal row As Long, _
     ByVal col As Long, _

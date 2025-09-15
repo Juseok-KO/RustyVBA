@@ -25,5 +25,6 @@ target
 
 /target
 
+rusty_vba.bas
 *.xlsx
 *.xlsm
