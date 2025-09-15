@@ -2,10 +2,10 @@
 Interface for Calling Rust Functions from Excel Sheets
 
 This project enables seamless intergration between Rust and Excel via VBA. It consists of four main components:
-core : Defines common datatypes that can be understood by both Rust and VBA.
-from_vba : A dynamic library that can be loaded from VBA code.
-vba_script_generator : Generates VBA script that load the dynamic library and define functions to communicate with it.
-dll_interface : Provides an interface for Rust developers to write functions that can be called from Excel.
+1. core : Defines common datatypes that can be understood by both Rust and VBA.
+2. from_vba : A dynamic library that can be loaded from VBA code.
+3. vba_script_generator : Generates VBA script that load the dynamic library and define functions to communicate with it.
+4. dll_interface : Provides an interface for Rust developers to write functions that can be called from Excel.
 
 Getting Started
 
