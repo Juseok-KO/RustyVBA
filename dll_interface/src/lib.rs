@@ -1,6 +1,10 @@
 use core::datatype::{TypeCode, Data, Value, string::CSTRING};
 use core::Pointer;
 
+pub const INTERFACE_NAME_NOTE: &'static str = "note";
+pub const INTERFACE_NAME_ARGS_INFO: &'static str = "args_info";
+pub const INTERFACE_NAME_CALL_FUNC: &'static str = "call_func";
+
 pub trait VbaInterface {
 
     fn note() -> &'static str;

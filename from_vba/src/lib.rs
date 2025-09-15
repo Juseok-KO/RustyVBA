@@ -1,7 +1,8 @@
 use core::Pointer;
-use core::datatype::{Data, Value};
-use core::datatype::string::CSTRING;
+use core::datatype::{Data, Value, string::{CSTRING, copy_from_cstr}};
+use dll_loader::DLL;
 
+use std::path::{Path, PathBuf};
 
 /// It seems that VBA does not allow a function without any return value.
 #[unsafe(no_mangle)]
@@ -384,4 +385,205 @@ fn array_sample_test() {
 
     println!("{:?}", drop_data(ptr_arr));
 
+}
+
+
+#[unsafe(no_mangle)]
+pub extern "C" fn list_dll(root: *mut Pointer, ptr_err: *mut bool) -> *mut Pointer {
+
+    let root_path = match copy_from_cstr(root) {
+        Ok(root_path) => PathBuf::from(root_path),
+        Err(e) => {    
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(format!("Failed to parse passed root: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    if !root_path.exists() {
+        unsafe { *ptr_err = false };
+        return Data::from(CSTRING::from(format!("Not existing path: {}", root_path.display()))).into_raw_pointer()
+    }
+
+    let dir = match std::fs::read_dir(&root_path) {
+        Ok(dir) => dir,
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(format!("Failed to read root dir: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let mut created_dll_name = String::from(env!("CARGO_CRATE_NAME"));
+    created_dll_name.push_str(".dll");
+
+    let dirs = dir.into_iter().filter_map(|sub_dir| {
+        sub_dir.ok()
+        .and_then(|sub_dir| {
+            sub_dir.file_name().to_str()    
+            .and_then(|sub_dir_str| {
+                if sub_dir_str.ends_with(".dll") & !sub_dir_str.ends_with(&created_dll_name) {
+                    Some(Data::from(CSTRING::from(sub_dir_str.to_string())))
+                } else {
+                    None
+                }
+            })
+        })
+    }).collect::<Vec<Data>>();
+
+    unsafe { *ptr_err = true };
+
+    Data::from(
+        vec![
+           dirs 
+        ]
+    ).into_raw_pointer()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn get_dll_note(root: *mut Pointer, dll_name: *mut Pointer, ptr_err: *mut bool) -> *mut Pointer {
+    let root_path = match copy_from_cstr(root) {
+        Ok(root_path) => PathBuf::from(root_path),
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(format!("Faield to parse passed root: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let dll_name = match copy_from_cstr(dll_name) {
+        Ok(dll_name) => dll_name,
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(format!("Failed to parse dll name: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let mut full_dll_path = root_path;
+    full_dll_path.push(&dll_name);
+
+    if !full_dll_path.exists() {
+        unsafe { *ptr_err = false };
+        return Data::from(CSTRING::from(format!("Specified dll_path does not exist: {}", full_dll_path.display()))).into_raw_pointer()
+    }
+
+    let full_path_str = full_dll_path.into_iter().filter_map(|elem| elem.to_str().map(|s| s.to_string()))
+    .collect::<Vec<String>>()
+    .join("\\");
+
+    let dll = match DLL::load(&full_path_str) {
+        Ok(dll) => dll,
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+    
+    match dll.get_ptr_note() {
+        Ok(ptr_note) => {
+            unsafe { *ptr_err = true };
+            return unsafe { ptr_note() }
+        }
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn get_dll_args_info(root: *mut Pointer, dll_name: *mut Pointer, ptr_err: *mut bool) -> *mut Pointer {
+    let root_path = match copy_from_cstr(root) {
+        Ok(root_path) => PathBuf::from(root_path),
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(format!("Failed to parse passed root: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let dll_name = match copy_from_cstr(dll_name) {
+        Ok(dll_name) => dll_name,
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(format!("Failed to parse dll name: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let mut full_dll_path = root_path;
+    full_dll_path.push(dll_name);
+
+    if !full_dll_path.exists() {
+        unsafe { *ptr_err = false };
+        return Data::from(CSTRING::from(format!("Specified dll_path does not exist: {}", full_dll_path.display()))).into_raw_pointer()
+    }
+
+    let full_path_str = full_dll_path.into_iter().filter_map(|elem| elem.to_str().map(|s| s.to_string()))
+    .collect::<Vec<String>>()
+    .join("\\");
+
+    let dll = match DLL::load(&full_path_str) {
+        Ok(dll) => dll,
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    match dll.get_ptr_args_info() {
+        Ok(ptr_args_info) => {
+            unsafe { *ptr_err = true };
+            return unsafe { ptr_args_info() }
+        }
+        Err(e) => {
+            unsafe {*ptr_err = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn call_dll(root: *mut Pointer, dll_name: *mut Pointer, ptr_args: *mut Pointer, ptr_err: *mut bool) -> *mut Pointer {
+    let root_path = match copy_from_cstr(root) {
+        Ok(root_path) => PathBuf::from(root_path),
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(format!("Faield to parse passed root: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let dll_name = match copy_from_cstr(dll_name) {
+        Ok(dll_name) => dll_name,
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(format!("Failed to parse dll name: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let mut full_dll_path = root_path;
+    full_dll_path.push(dll_name);
+
+    if !full_dll_path.exists() {
+        unsafe { *ptr_err = false };
+        return Data::from(CSTRING::from(format!("Specified dll_path does not exist: {}", full_dll_path.display()))).into_raw_pointer()
+    }
+
+    let full_path_str = full_dll_path.into_iter().filter_map(|elem| elem.to_str().map(|s| s.to_string()))
+    .collect::<Vec<String>>()
+    .join("\\");
+
+    let dll = match DLL::load(&full_path_str) {
+        Ok(dll) => dll,
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    match dll.get_prt_call_func() {
+        Ok(ptr_func) => {
+            unsafe { *ptr_err = true };
+            return unsafe { ptr_func(ptr_args, ptr_err) }
+        }
+        Err(e) => {
+            unsafe { *ptr_err = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    }
 }

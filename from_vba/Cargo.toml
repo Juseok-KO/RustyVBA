@@ -8,3 +8,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 core = { path = "./../core" }
+dll_loader = { path = "./../dll_loader" }

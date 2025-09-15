@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 core = { path = "../core" }
+dll_interface = { path = "./../dll_interface" }
+
+windows = { version = "0.62", features = ["Win32_System", "Win32_System_LibraryLoader"] }
