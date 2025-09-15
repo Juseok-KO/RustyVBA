@@ -330,19 +330,29 @@ Private Function ConvertVBACollectionRustArr(ByVal vba_collection As Variant) As
         Exit Function
         
     num_rows = UBound(vba_arr, 1) - LBound(vba_arr, 1) + 1
-    num_cols = UBound(var_arr, 2) - LBound(var_arr, 2) + 1
+    num_cols = UBound(vba_arr, 2) - LBound(vba_arr, 2) + 1
     
     rust_arr_ptr = init_array(num_rows, num_cols)
     
+    Dim r As Long
+    Dim c As Long
     Dim cur_row As Long
     Dim cur_col As Long
     
-    For cur_row = 0 To num_rows - 1
-        For cur_col = 0 To num_cols - 1
+    cur_row = 0
+    cur_col = 0
+
+    For r = LBound(vba_arr, 1) To UBound(vba_arr, 1)
         
-            set_result = SetVBAValueToRustArr(rust_arr_ptr, cur_row, col_val, vba_arr(cur_row, cur_col))
+        cur_col = 0
+        For c = LBound(vba_arr, 2) To UBound(vba_arr, 2)
         
+            set_result = SetVBAValueToRustArr(rust_arr_ptr, cur_row, col_val, vba_arr(r, c))
+        
+        cur_col = cur_col + 1
         Next cur_col
+
+        cur_row = cur_row + 1
     Next cur_row
     
     ConvertVBACollectionRustArr = rust_arr_ptr
@@ -394,10 +404,10 @@ Private Function SetVBAValueToRustArr(ByVal ptr_rust_arr As LongPtr, ByVal row_i
             ptr_err_msg = arr_set_bool(ptr_rust_arr, row_idx, col_idx, RUST_FALSE, ptr_err)
         End If
         
-    ElseIf VarType(vb_val) = vbArray Then
+    ElseIf VarType(vb_val) = vbArray Or TypeName(vb_val) = "Range" Or IsArray(vb_val) Then
         Dim converted_arr As LongPtr
         converted_arr = ConvertVBACollectionRustArr(vb_val)
-        ptr_err_msg = arr_set_arr(ptr_ruat_arr, row_idx, col_idx, converted_arr, ptr_err)
+        ptr_err_msg = arr_set_arr(ptr_rust_arr, row_idx, col_idx, converted_arr, ptr_err)
         
     Else
         ptr_err_msg = arr_set_none(ptr_rust_arr, row_idx, col_idx, ptr_err)
