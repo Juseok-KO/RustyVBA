@@ -147,6 +147,30 @@ Private Declare PtrSafe Function get_elem_ptr Lib "{INTERFACE}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
+Private Declare PtrSafe Function list_dll Lib "{INTERFACE}" ( _
+    ByVal ptr_root As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function get_dll_note Lib "{INTERFACE}" ( _
+    ByVal ptr_root As LongPtr, _
+    ByVal ptr_dll_name As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function get_dll_args_info Lib "{INTERFACE}" ( _
+    ByVal ptr_root As LongPtr, _
+    ByVal ptr_dll_name As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function call_dll Lib "{INTERFACE}" ( _
+    ByVal ptr_root As LongPtr, _
+    ByVal ptr_dll_name As LongPtr, _
+    ByVal ptr_args As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
 Private Declare PtrSafe Function MultiByteToWideChar Lib "kernel32" ( _
         ByVal CodePage As Long, ByVal dwFlags As Long, _
         ByVal lpMultiByteStr As LongPtr, ByVal cbMultiByte As Long, _
@@ -421,15 +445,93 @@ Private Function IntoRustArgs(args() As Variant) As LongPtr
     
 End Function
 
+Function RustyFuncList() As Variant
+    Dim ptr_dll_root As LongPtr
+    Dim result As Byte
+    Dim ptr_result As LongPtr
+    Dim ptr_list As LongPtr
 
-'To be converted into production code that extracts a pointer to function called call_func from given dll
-Function ArbitraryNumArgsTest(ParamArray args() As Variant) As Variant
+    ptr_dll_root = StrPtr(DLL_DIR_ROOT)
+    result = RUST_TRUE
+    ptr_result = VarPtr(result)
+
+    ptr_list = list_dll(ptr_dll_root, ptr_result)
+
+    If result = RUST_FALSE Then
+        RustyFuncList = "Failed to get RustyFuncList"
+
+    Else 
+        RustyFuncList = ReadPtrData(ptr_list)
+        drop_data(ptr_list)
+
+    End If
+
+End Function
+
+
+Function RustyFuncNote(func_name As String) As Variant
+    Dim ptr_dll_root As LongPtr
+    Dim ptr_dll_name As LongPtr
+    Dim result As Byte
+    Dim ptr_result As LongPtr
+    Dim ptr_note As LongPtr
+
+    ptr_dll_root = StrPtr(DLL_DIR_ROOT)
+    ptr_dll_name = StrPtr(func_name)
+    result = RUST_TRUE
+    ptr_result = VarPtr(result)
+
+    ptr_note = get_dll_note(ptr_dll_root, ptr_dll_name, ptr_result)
+
+    If result = RUST_FALSE Then
+        RustyFuncNote = "Failed to get a note for the specified function"
+    
+    Else
+        RustyFuncNote = ReadPtrData(ptr_note)
+        drop_data(ptr_note)
+    End If
+    
+End Function
+
+Function RustyFuncArgs(func_name As String) As Variant
+    Dim ptr_dll_root As LongPtr
+    Dim ptr_dll_name As LongPtr
+    Dim result As Byte
+    Dim ptr_result As LongPtr
+    Dim ptr_info As LongPtr
+
+    ptr_dll_root = StrPtr(DLL_DIR_ROOT)
+    ptr_dll_name = StrPtr(func_name)
+    result = RUST_TRUE
+    ptr_result = VarPtr(result)
+
+    ptr_info = get_dll_args_info(ptr_dll_root, ptr_dll_name, ptr_result)
+
+    If result = RUST_FALSE Then
+        RustyFuncArgs = "Failed to get info for the specified function"
+    
+    Else    
+        RustyFuncArgs = ReadPtrData(ptr_info)
+        drop_data(ptr_info)
+    
+    End If
+
+End Function
+
+
+Function RustyFuncCall(func_name As String, ParamArray args() As Variant) As Variant
+    Dim ptr_dll_root As LongPtr
+    Dim ptr_dll_name As LongPtr
+    Dim result As Byte
+    Dim ptr_result As LongPtr
+    Dim ptr_data As LongPtr
+
     Dim ptr_rust_args As LongPtr
     Dim result_from_rust As Variant
     Dim vba_args() As Variant
+    
     Dim i As Long
     
-    MsgBox " num args : " & UBound(args) - LBound(args) + 1
     ReDim vba_args(LBound(args) To UBound(args))
     For i = LBound(args) To UBound(args)
         vba_args(i) = args(i)
@@ -438,58 +540,22 @@ Function ArbitraryNumArgsTest(ParamArray args() As Variant) As Variant
     ptr_rust_args = IntoRustArgs(vba_args)
     
     If ptr_rust_args = 0 Then
-        ArbitraryNumArgsTest = "Failed to prepare Rust args"
+        RustyFuncCall = "Failed to prepare Rust args"
     
     Else
-        
-        Dim ptr_func_result As LongPtr
-        Dim drop_result As Byte
-        ptr_func_result = CallDllFuncTest(ptr_rust_args)
+
+        result = RUST_TRUE
+
+        ptr_result = VarPtr(result)
+        ptr_dll_root = StrPtr(DLL_DIR_ROOT)
+        ptr_dll_name = StrPtr(func_name)
+
+        ptr_data = call_dll(ptr_dll_root, ptr_dll_name, ptr_rust_args, ptr_result)
         drop_result = drop_data(ptr_rust_args)
         
-        ArbitraryNumArgsTest = ReadPtrData(ptr_func_result)
-        drop_result = drop_data(ptr_func_result)
+        RustyFuncCall = ReadPtrData(ptr_data)
+        drop_result = drop_data(ptr_data)
         
     End If
-
-End Function
-
-'To be converted into Production code that extract a pointer to function called note from given dll
-Function NoteTest() As Variant
-
-    Dim ptr_note As LongPtr
-    Dim result As Variant
-    Dim drop_result As Byte
-    
-    ptr_note = note()
-    result = ReadPtrData(ptr_note)
-    drop_result = drop_data(ptr_note)
-    
-    NoteTest = result
-    
-End Function
-
-'To be converted into production code that extracts a pointer ot function called args_info from given dll
-Function ArgInfoTest() As Variant
-
-    Dim ptr_info As LongPtr
-    Dim result As Variant
-    Dim drop_result As Byte
-    
-    ptr_info = args_info()
-    result = ReadPtrData(ptr_info)
-    drop_result = drop_data(ptr_info)
-    
-    ArgInfoTest = result
-    
-End Function
-
-Function CallDllFuncTest(ByVal ptr_args As LongPtr) As LongPtr
-    
-    Dim error As Byte
-    Dim ptr_err As LongPtr
-    
-    ptr_err = VarPtr(error)
-    CallDllFuncTest = call_func(ptr_args, ptr_err)
 
 End Function

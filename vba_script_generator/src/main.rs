@@ -34,11 +34,13 @@ fn main() {
 
     let dll_root = dll_root.into_iter().filter_map(|elem| elem.to_str().map(|s| s.to_string()))
     .filter(|e| e != "\\")
+    .map(|e| if e.ends_with(":") { String::from("C:") } else { e })
     .collect::<Vec<String>>()
     .join("\\");
 
     let interface = interface.into_iter().filter_map(|elem| elem.to_str().map(|s| s.to_string()))
     .filter(|e| e!= "\\")
+    .map(|e| if e.ends_with(":") { String::from("C:")} else { e })
     .collect::<Vec<String>>()
     .join("\\");
 

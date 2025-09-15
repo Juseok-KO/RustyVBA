@@ -8,7 +8,7 @@ struct SampleDll;
 impl VbaInterface for SampleDll {
 
     fn note() -> &'static str {
-        "This is a Sample to demonstrate how to use this interface. It will append 'From Rust!' to String argument, and multiply any numeric arguments"
+        "This is a Sample to demonstrate how to use this interface. It will append 'From Rust!' to String argument, and double any numeric arguments"
     }
 
     fn args_name() -> &'static [&'static str] {
