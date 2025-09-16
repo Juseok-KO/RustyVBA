@@ -71,9 +71,9 @@ impl VbaInterface for SampleDll {
                 unsafe { *ptr_err = true };
                 Data::from(fnum * 2.0).into_raw_pointer()
             }
-            _ => {
+            arg @ _ => {
                 unsafe { *ptr_err = false };
-                return Data::from(CSTRING::from(format!("Not supported type provided"))).into_raw_pointer()
+                return Data::from(CSTRING::from(format!("Not supported type provided: {:?}", arg))).into_raw_pointer()
             }
         }
 

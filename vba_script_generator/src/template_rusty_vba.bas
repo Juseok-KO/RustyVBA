@@ -328,6 +328,8 @@ Private Function ConvertVBACollectionRustArr(ByVal vba_collection As Variant) As
     Else
         ConvertVBACollectionRustArr = 0
         Exit Function
+    
+    End If
         
     num_rows = UBound(vba_arr, 1) - LBound(vba_arr, 1) + 1
     num_cols = UBound(vba_arr, 2) - LBound(vba_arr, 2) + 1
