@@ -469,14 +469,17 @@ Function RustyFuncList() As Variant
 
     ptr_list = list_dll(ptr_dll_root, ptr_result)
 
-    If result = RUST_FALSE Then
-        RustyFuncList = "Failed to get RustyFuncList"
+    'If result = RUST_FALSE Then
+    '    RustyFuncList = "Failed to get RustyFuncList"
 
-    Else 
-        RustyFuncList = ReadPtrData(ptr_list)
-        drop_data(ptr_list)
+    'Else 
+    '    RustyFuncList = ReadPtrData(ptr_list)
+    '    drop_data(ptr_list)
 
-    End If
+    'End If
+
+    RustyFuncList = ReadPtrData(ptr_list)
+    drop_data(ptr_list)
 
 End Function
 
@@ -495,13 +498,16 @@ Function RustyFuncNote(func_name As String) As Variant
 
     ptr_note = get_dll_note(ptr_dll_root, ptr_dll_name, ptr_result)
 
-    If result = RUST_FALSE Then
-        RustyFuncNote = "Failed to get a note for the specified function"
-    
-    Else
-        RustyFuncNote = ReadPtrData(ptr_note)
-        drop_data(ptr_note)
-    End If
+    'If result = RUST_FALSE Then
+    '    RustyFuncNote = "Failed to get a note for the specified function"
+    '
+    'Else
+    '    RustyFuncNote = ReadPtrData(ptr_note)
+    '    drop_data(ptr_note)
+    'End If
+
+    RustyFuncNote = ReadPtrData(ptr_note)
+    drop_data(ptr_note)
     
 End Function
 
@@ -519,14 +525,18 @@ Function RustyFuncArgs(func_name As String) As Variant
 
     ptr_info = get_dll_args_info(ptr_dll_root, ptr_dll_name, ptr_result)
 
-    If result = RUST_FALSE Then
-        RustyFuncArgs = "Failed to get info for the specified function"
+    'If result = RUST_FALSE Then
+    '    RustyFuncArgs = "Failed to get info for the specified function"
+    '
+    'Else    
+    '    RustyFuncArgs = ReadPtrData(ptr_info)
+    '    drop_data(ptr_info)
     
-    Else    
-        RustyFuncArgs = ReadPtrData(ptr_info)
-        drop_data(ptr_info)
+    'End If
+
+    RustyFuncArgs = ReadPtrData(ptr_info)
+    drop_data(ptr_info)
     
-    End If
 
 End Function
 
