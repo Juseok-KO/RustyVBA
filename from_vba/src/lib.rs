@@ -421,7 +421,7 @@ pub extern "C" fn list_dll(root: *mut Pointer, ptr_result: *mut bool) -> *mut Po
             sub_dir.file_name().to_str()    
             .and_then(|sub_dir_str| {
                 if sub_dir_str.ends_with(".dll") & !sub_dir_str.ends_with(&created_dll_name) {
-                    Some(Data::from(CSTRING::from(sub_dir_str.to_string())))
+                    Some(Data::from(vec![Data::from(CSTRING::from(sub_dir_str.to_string()))]))
                 } else {
                     None
                 }
@@ -436,12 +436,7 @@ pub extern "C" fn list_dll(root: *mut Pointer, ptr_result: *mut bool) -> *mut Po
         Data::from(CSTRING::from(format!("No dll found"))).into_raw_pointer()
     
     } else {
-            
-        Data::from(
-            vec![
-            dirs 
-            ]
-        ).into_raw_pointer()
+        Data::from(dirs).into_raw_pointer()
     }
 
 }
