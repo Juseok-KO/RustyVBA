@@ -22,14 +22,14 @@ impl VbaInterface for SampleDll {
     fn call_func(ptr_args: *mut Pointer, ptr_err: *mut bool) -> *mut Pointer {
         let lt = ();
 
-        let Ok(args) = parse_args(ptr_args, &lt) else {
+        let Ok(mut args) = parse_args(ptr_args, &lt) else {
 
             unsafe { *ptr_err = false };
             return Data::from(CSTRING::from(format!("Failed to parse args"))).into_raw_pointer()
         };
 
         // In this example, only single argument is supplied
-        match args.get(0).and_then(|arg| Some(arg.get_value())) {
+        match args.next().and_then(|arg| Some(arg.get_value())) {
             Some(Value::CSTRING(cstr)) => {
                 let Ok(mut string) = cstr.get_string() else {
                     unsafe { *ptr_err = false};

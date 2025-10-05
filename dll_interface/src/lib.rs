@@ -1,9 +1,24 @@
-use core::datatype::{TypeCode, Data, Value, string::CSTRING};
+use core::datatype::{TypeCode, Data, Value, string::CSTRING, RawArrayIter};
 use core::Pointer;
+use std::marker::PhantomData;
 
 pub const INTERFACE_NAME_NOTE: &'static str = "note";
 pub const INTERFACE_NAME_ARGS_INFO: &'static str = "args_info";
 pub const INTERFACE_NAME_CALL_FUNC: &'static str = "call_func";
+
+#[derive(Debug)]
+pub struct Args<'a>{
+    lt: PhantomData<&'a ()>,
+    args: RawArrayIter<'a, Data>
+}
+
+impl<'a> Iterator for Args<'a> {
+    type Item = &'a Data;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.args.next()
+    }
+}
 
 pub trait VbaInterface {
 
@@ -18,7 +33,7 @@ pub trait VbaInterface {
 
 
 /// assumption: args are provided in the form of Vec<Data>
-pub fn parse_args<'a>(ptr_args: *mut Pointer, _lifetime: &'a ()) -> Result<&'a Vec<Data>, String> {
+pub fn parse_args<'a>(ptr_args: *mut Pointer, _lifetime: &'a ()) -> Result<Args<'a>, String> {
 
     let ref_arg = unsafe { &*(ptr_args as *mut Data) };
 
@@ -28,11 +43,11 @@ pub fn parse_args<'a>(ptr_args: *mut Pointer, _lifetime: &'a ()) -> Result<&'a V
     };
 
     // only the first row of ptr_args has relevant data
-    let Some(Value::Array(first_row)) = args.get(0).and_then(|args| Some(args.get_value())) else {
+    let Some(Value::Array(first_row)) = args.iter().next().and_then(|args| Some(args.get_value())) else {
         return Err(format!("The provided args should be the 2-dimensional array"))
     };
 
-    Ok(first_row)
+    Ok(Args{lt: PhantomData::<&()>, args: first_row.iter()})
 }
 
 #[macro_export]

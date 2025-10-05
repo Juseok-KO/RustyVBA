@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::Pointer;
 
 pub mod string;
@@ -40,6 +42,83 @@ impl ToString for TypeCode {
 
 #[repr(C)]
 #[derive(Debug)]
+pub struct RawArray<T: Sized> {
+    ptr: *mut T,
+    length: usize,
+    capacity: usize
+}
+
+impl<T: Sized> From<Vec<T>> for RawArray<T> {
+    fn from(value: Vec<T>) -> Self {
+        let length = value.len();
+        let capacity = value.capacity();
+        let ptr = value.leak() as *mut [T] as *mut T;
+
+        RawArray { ptr, length, capacity }
+    }
+}
+
+impl<T: Sized> RawArray<T> {
+    fn into_vec(self) -> Vec<T> {
+        unsafe {
+            Vec::from_raw_parts(self.ptr, self.length, self.capacity)
+        }
+    }
+
+    pub fn iter(&self) -> RawArrayIter<T> {
+        RawArrayIter { 
+            ptr: self.ptr, 
+            idx: 0, 
+            length: self.length, 
+            lt: PhantomData::<&()>
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct RawArrayIter<'a, T: Sized>{
+    ptr: *mut T,
+    idx: usize,
+    length: usize,
+    lt: PhantomData<&'a ()>
+}
+
+impl<'a, T: Sized + 'a> Iterator for RawArrayIter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx >= self.length {
+            return None
+        
+        } else {
+            let cur_idx = self.idx;
+            self.idx += 1;
+
+            Some(unsafe{ &*self.ptr.offset(cur_idx as isize) })
+        }
+    }
+}
+
+impl<T: Sized> Drop for RawArray<T> {
+    fn drop(&mut self) {
+        let recoverd_vec = unsafe { Vec::from_raw_parts(self.ptr, self.length, self.capacity)};
+        
+        for (idx, v) in recoverd_vec.into_iter().enumerate() {
+            #[cfg(debug_assertions)] {
+                println!("Bye {}!!", idx)
+            }
+            drop(v);
+        }
+
+        self.ptr = std::ptr::null_mut();
+        self.capacity = 0;
+        self.length = 0;
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
 pub enum Value {
     None,
     I8(i8), 
@@ -50,7 +129,7 @@ pub enum Value {
     F64(f64),
     BOOL(bool),
     CSTRING(string::CSTRING),
-    Array(Vec<Data>),
+    Array(RawArray<Data>),
     
 }
 
@@ -87,7 +166,9 @@ impl Data {
     pub fn drop(pointer: *mut Pointer) {
 
         let _recovered_val = unsafe { Box::from_raw(pointer as *mut Data )};
-        println!("data dropped");
+        #[cfg(debug_assertions)] {
+            println!("data dropped: {:?}", _recovered_val.get_type());
+        }
     }
 
     pub fn is_none(pointer: *mut Pointer) -> bool {
@@ -103,7 +184,7 @@ impl Data {
         let Value::Array(v) = self.d else {
             return Err(self)
         };
-        Ok(v)
+        Ok(v.into_vec())
     }
 
     pub fn init_array(row: i32, col: i32) -> *mut Pointer {
@@ -118,12 +199,13 @@ impl Data {
     }
 
     pub fn get_arr_row(pointer: *const Pointer) -> Result<i32, String> {
+        
         let refr = unsafe { &*(pointer as *const Data)};
         let Value::Array(arr) = &refr.d else {
             return Err(format!("Passed data is not an Array"))
         };
 
-        Ok(arr.len() as i32)
+        Ok(arr.length as i32)
     }
 
     pub fn get_arr_col(pointer: *const Pointer) -> Result<i32, String> {
@@ -132,15 +214,12 @@ impl Data {
             return Err(format!("Passed data is not an Array"))
         };
 
-        let Some(first_row) = arr.get(0) else {
+        let first_item = &unsafe { &*arr.ptr.offset(0) }.d;
+        let Value::Array(first_row) = first_item  else {
             return Err(format!("Failed to get the first row of the passed Array"))
         };
 
-        let Value::Array(first_row) = &first_row.d else {
-            return Err(format!("Passed data is not 2 dimensional Array"))
-        };
-
-        Ok(first_row.len() as i32)
+        Ok(first_row.length as i32)
     }
 
     pub fn get_mut_ref_arr_element(pointer: *mut Pointer, row: i32, col: i32, _t: &()) -> Result<&mut Data, String> {
@@ -150,18 +229,21 @@ impl Data {
             return Err(format!("Passed data is not an Array"))
         };
 
-        let Some(r) = arr.get_mut(row as usize) else{
+        if arr.length <= row as usize{
             return Err(format!("Passed Array does not have enough rows"))
-        };
+        }
 
-        let Value::Array(arr_row) = &mut r.d else {
+        let selected_row = &unsafe { &*arr.ptr.offset(row as isize)}.d;
+        let Value::Array(arr_row) =  selected_row else {
             return Err(format!("Passed data is not a 2-dimensional Array"))
         };
 
-        let Some(c) = arr_row.get_mut(col as usize) else {
+        if arr_row.length < col as usize {
             return Err(format!("Passed Array does not have enough columns"))
-        };
-        Ok(c)
+        }
+
+        let selected_col = unsafe { &mut *arr_row.ptr.offset(col as isize) };
+        Ok(selected_col)
     }
 
     pub fn get_ptr_arr_element(pointer: *const Pointer, row: i32, col: i32) -> Result<*const Pointer, String> {
@@ -177,19 +259,21 @@ impl Data {
             return Err(format!("Passed data is not an Array"))
         };
 
-        let Some(r) = arr.get(row as usize) else {
+        if arr.length <= row as usize {
             return Err(format!("Passed Array does not have enough rows"))
-        };
+        }
 
-        let Value::Array(arr_row) = &r.d else {
+        let selected_row = &unsafe { &*arr.ptr.offset(row as isize)}.d;
+        let Value::Array(arr_row) = selected_row else {
             return Err(format!("Passed data is not a 2-dimensional Array"))
         };
 
-        let Some(c) = arr_row.get(col as usize) else {
+        if arr_row.length < col as usize {
             return Err(format!("Passed Array does not have enough columns"))
-        };
+        }
 
-        Ok(c)
+        let selected_col = unsafe { & *arr_row.ptr.offset(col as isize)};
+        Ok(selected_col)
     }
 
     pub fn get_i8(pointer: *const Pointer) -> Result<i8, String>{
@@ -254,7 +338,7 @@ impl Data {
             return Err(format!("Passed value is not CSTRING: {:?}", refr.t))
         };
 
-        Ok(v.0.as_slice() as *const [u8] as *const u8 as *const Pointer)
+        Ok(v.0.ptr as *const Pointer)
     }
 
 
@@ -349,22 +433,30 @@ fn array_setting_test() {
     let array_1 = Data::from(vec![Data::from(vec![1, 2, 3])]).into_raw_pointer();
     let array_2 = Data::from(vec![Data::from(vec![2.13, 5.44])]).into_raw_pointer();
 
+    println!("array_1: {:?}", array_1);
+    println!("array_2: {:?}", array_2);
+
     let outer_array = Data::init_array(1, 2);
     println!("{:?}", Data::set_array(outer_array, 0, 0, array_1));
     println!("{:?}", Data::set_array(outer_array, 0, 1, array_2));
+
+    println!("num_rows: {:?}", Data::get_arr_row(outer_array));
+    println!("num_cols: {:?}", Data::get_arr_col(outer_array));
 
     let outer_array = unsafe { Box::from_raw(outer_array as *mut Data)};
     println!("recoverd array: {:?}", outer_array);
 
     if let Value::Array(params) = &outer_array.d {
-        if let Some(outer_array_first_row) = params.get(0) {
-            if let Value::Array(params) = &outer_array_first_row.d {
-                for (idx, p) in params.iter().enumerate() {
-                    println!("idx: {}, p: {:?}", idx, p);
-                }
+
+        let outer_array_first_row = unsafe { &*params.ptr.offset(0) };
+        
+        if let Value::Array(params) = &outer_array_first_row.d {
+            for idx in 0..params.length {
+                println!("idx: {}, p: {:?}", idx, unsafe {&*params.ptr.offset(idx as isize)});
             }
         }
     }
+
 }
 
 impl From<i8> for Data {
@@ -444,7 +536,7 @@ where Data: From<D>{
     fn from(value: Vec<D>) -> Self {
         Data {
             t: TypeCode::ARRAY,
-            d: Value::Array(value.into_iter().map(|d| Data::from(d)).collect::<Vec<Data>>())
+            d: Value::Array(RawArray::from(value.into_iter().map(|d| Data::from(d)).collect::<Vec<Data>>()))
         }
     }
 }

@@ -22,12 +22,12 @@ impl VbaInterface for CartesianProduct {
     fn call_func(ptr_args: *mut Pointer, ptr_err: *mut bool) -> *mut Pointer {
         let lt = ();
 
-        let Ok(args) = parse_args(ptr_args, &lt) else {
+        let Ok(mut args) = parse_args(ptr_args, &lt) else {
             unsafe { *ptr_err = false };
             return Data::from(CSTRING::from(format!("Failed to parse args"))).into_raw_pointer()
         };
 
-        match (args.get(0).map(|a1| a1.get_value() ), args.get(1).map(|a2| a2.get_value())) {
+        match (args.next().map(|a1| a1.get_value() ), args.next().map(|a2| a2.get_value())) {
 
             (Some(Value::Array(arr1)), Some(Value::Array(arr2))) => {
 
