@@ -238,7 +238,7 @@ impl Data {
             return Err(format!("Passed data is not a 2-dimensional Array"))
         };
 
-        if arr_row.length < col as usize {
+        if arr_row.length <= col as usize {
             return Err(format!("Passed Array does not have enough columns"))
         }
 
@@ -268,7 +268,7 @@ impl Data {
             return Err(format!("Passed data is not a 2-dimensional Array"))
         };
 
-        if arr_row.length < col as usize {
+        if arr_row.length <= col as usize {
             return Err(format!("Passed Array does not have enough columns"))
         }
 
