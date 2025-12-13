@@ -2,6 +2,8 @@ use clap::Parser;
 use std::path::PathBuf;
 use std::io::Write;
 
+use dll_finder;
+
 const TEMPLATE_BODY: &'static str = include_str!("template_rusty_vba.bas");
 const OUTPUT_VBA_SCRIPT_NAME: &'static str = "rusty_vba.bas";
 
@@ -28,9 +30,17 @@ fn main() {
         return 
     };
     let Ok(interface) = PathBuf::from(&args.interface).canonicalize() else {
-        println!("Provided interface, {}, does not exist" ,args.interface);
+        println!("Provided interface, {}, does not exist. Specify where from_vba.dll is located with a full path to the dll." ,args.interface);
         return
     };
+    
+    match dll_finder::create_dir_list_file(&dll_root) {
+        Ok(_) => {},
+        Err(e) => {
+            println!("{:?}", e);
+            return
+        }
+    }
 
     let dll_root = dll_root.into_iter().filter_map(|elem| elem.to_str().map(|s| s.to_string()))
     .filter(|e| e != "\\")
@@ -44,11 +54,24 @@ fn main() {
     .collect::<Vec<String>>()
     .join("\\");
 
+    let path_to_script = match std::path::PathBuf::from(&interface).parent() {
+        Some(interface_parent) => {
+            let mut interface_parent = interface_parent.to_path_buf();
+            interface_parent.push(OUTPUT_VBA_SCRIPT_NAME);
+            interface_parent
+        },
+        None => {
+            println!("Failed to get the parent dir of interface. Provide the correct path to the interface.");
+            return
+        }
+    };
+    
+
     let template_body = TEMPLATE_BODY
     .replace(ID_DLL_ROOT, &dll_root)
     .replace(ID_INTERFACE, &interface);
 
-    let mut output_file = match std::fs::File::create_new(OUTPUT_VBA_SCRIPT_NAME) {
+    let mut output_file = match std::fs::File::create(path_to_script) {
         Ok(output_file) => output_file,
         Err(e) => {
             println!("Failed to create output file: {:?}", e);

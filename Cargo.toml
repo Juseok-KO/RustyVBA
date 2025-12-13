@@ -1,5 +1,8 @@
 [workspace]
 members = [
-    "core", "dll_interface", 
+    "core", "dll_finder", "dll_interface", 
     "dll_loader", "example_cartesian_product", "example_dll", "from_vba", "vba_script_generator",
 ]
+
+[workspace.dependencies]
+dll_finder = { path = "./dll_finder" }

@@ -148,24 +148,38 @@ Private Declare PtrSafe Function get_elem_ptr Lib "{INTERFACE}" ( _
 ) As LongPtr
 
 Private Declare PtrSafe Function list_dll Lib "{INTERFACE}" ( _
-    ByVal ptr_root As LongPtr, _
+    ByVal ptr_default_root As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function list_dll_dirs Lib "{INTERFACE}" ( _
+    ByVal ptr_default_root As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function list_dll_under_dir Lib "{INTERFACE}" ( _
+    ByVal ptr_default_root As LongPtr, _
+    ByVal ptr_dir_name As LongPtr, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
 Private Declare PtrSafe Function get_dll_note Lib "{INTERFACE}" ( _
-    ByVal ptr_root As LongPtr, _
+    ByVal ptr_default_root As LongPtr, _
+    ByVal ptr_dir_name As LongPtr, _
     ByVal ptr_dll_name As LongPtr, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
 Private Declare PtrSafe Function get_dll_args_info Lib "{INTERFACE}" ( _
-    ByVal ptr_root As LongPtr, _
+    ByVal ptr_default_root As LongPtr, _
+    ByVal ptr_dir_name As LongPtr, _
     ByVal ptr_dll_name As LongPtr, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
 Private Declare PtrSafe Function call_dll Lib "{INTERFACE}" ( _
     ByVal ptr_root As LongPtr, _
+    ByVal ptr_dir_name As LongPtr, _
     ByVal ptr_dll_name As LongPtr, _
     ByVal ptr_args As LongPtr, _
     ByVal ptr_result As LongPtr _
@@ -483,20 +497,58 @@ Function RustyFuncList() As Variant
 
 End Function
 
-
-Function RustyFuncNote(func_name As String) As Variant
+Function RustyFuncFolderList() As Variant
     Dim ptr_dll_root As LongPtr
+    Dim result As Byte
+    Dim ptr_result As LongPtr
+    Dim ptr_list As LongPtr
+
+    ptr_dll_root = StrPtr(DLL_DIR_ROOT)
+    result = RUST_TRUE
+    ptr_result = VarPtr(result)
+
+    ptr_list = list_dll_dirs(ptr_dll_root, ptr_result)
+
+    RustyFuncFolderList = ReadPtrData(ptr_list)
+    drop_data(ptr_list)
+
+End Function
+
+Function RustyFuncListUnderFolder(folder_name As String) As Variant 
+    Dim ptr_dll_root As LongPtr
+    Dim ptr_folder_name As LongPtr
+    Dim result As Byte
+    Dim ptr_result As LongPtr
+    Dim ptr_list as LongPtr
+
+    ptr_dll_root = StrPtr(DLL_DIR_ROOT)
+    ptr_folder_name = StrPtr(folder_name)
+    result = RUST_TRUE
+    ptr_result = VarPtr(result)
+
+    ptr_list =  list_dll_under_dir(ptr_dll_root, ptr_folder_name, ptr_result)
+
+    RustyFuncListUnderFolder = ReadPtrData(ptr_list)
+    drop_data(ptr_list)
+
+End Function
+
+
+Function RustyFuncNote(folder_name As String, func_name As String) As Variant
+    Dim ptr_dll_root As LongPtr
+    Dim ptr_folder_name As LongPtr
     Dim ptr_dll_name As LongPtr
     Dim result As Byte
     Dim ptr_result As LongPtr
     Dim ptr_note As LongPtr
 
     ptr_dll_root = StrPtr(DLL_DIR_ROOT)
+    ptr_folder_name = StrPtr(folder_name)
     ptr_dll_name = StrPtr(func_name)
     result = RUST_TRUE
     ptr_result = VarPtr(result)
 
-    ptr_note = get_dll_note(ptr_dll_root, ptr_dll_name, ptr_result)
+    ptr_note = get_dll_note(ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_result)
 
     'If result = RUST_FALSE Then
     '    RustyFuncNote = "Failed to get a note for the specified function"
@@ -511,19 +563,21 @@ Function RustyFuncNote(func_name As String) As Variant
     
 End Function
 
-Function RustyFuncArgs(func_name As String) As Variant
+Function RustyFuncArgs(folder_name As String, func_name As String) As Variant
     Dim ptr_dll_root As LongPtr
+    Dim ptr_folder_name As LongPtr
     Dim ptr_dll_name As LongPtr
     Dim result As Byte
     Dim ptr_result As LongPtr
     Dim ptr_info As LongPtr
 
     ptr_dll_root = StrPtr(DLL_DIR_ROOT)
+    ptr_folder_name = StrPtr(folder_name)
     ptr_dll_name = StrPtr(func_name)
     result = RUST_TRUE
     ptr_result = VarPtr(result)
 
-    ptr_info = get_dll_args_info(ptr_dll_root, ptr_dll_name, ptr_result)
+    ptr_info = get_dll_args_info(ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_result)
 
     'If result = RUST_FALSE Then
     '    RustyFuncArgs = "Failed to get info for the specified function"
@@ -541,8 +595,9 @@ Function RustyFuncArgs(func_name As String) As Variant
 End Function
 
 
-Function RustyFuncCall(func_name As String, ParamArray args() As Variant) As Variant
+Function RustyFuncCall(folder_name As String, func_name As String, ParamArray args() As Variant) As Variant
     Dim ptr_dll_root As LongPtr
+    Dim ptr_folder_name As LongPtr
     Dim ptr_dll_name As LongPtr
     Dim result As Byte
     Dim ptr_result As LongPtr
@@ -570,9 +625,10 @@ Function RustyFuncCall(func_name As String, ParamArray args() As Variant) As Var
 
         ptr_result = VarPtr(result)
         ptr_dll_root = StrPtr(DLL_DIR_ROOT)
+        ptr_folder_name = StrPtr(folder_name)
         ptr_dll_name = StrPtr(func_name)
 
-        ptr_data = call_dll(ptr_dll_root, ptr_dll_name, ptr_rust_args, ptr_result)
+        ptr_data = call_dll(ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_rust_args, ptr_result)
         drop_result = drop_data(ptr_rust_args)
         
         RustyFuncCall = ReadPtrData(ptr_data)

@@ -1,6 +1,7 @@
 use core::Pointer;
 use core::datatype::{Data, Value, string::{CSTRING, copy_from_cstr}};
 use dll_loader::DLL;
+use dll_finder;
 
 use std::path::{Path, PathBuf};
 
@@ -387,11 +388,10 @@ fn array_sample_test() {
 
 }
 
-
 #[unsafe(no_mangle)]
-pub extern "C" fn list_dll(root: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+pub extern "C" fn list_dll(default_root: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
 
-    let root_path = match copy_from_cstr(root) {
+    let root_path = match copy_from_cstr(default_root) {
         Ok(root_path) => PathBuf::from(root_path),
         Err(e) => {    
             unsafe { *ptr_result = false };
@@ -399,55 +399,96 @@ pub extern "C" fn list_dll(root: *mut Pointer, ptr_result: *mut bool) -> *mut Po
         }
     };
 
-    if !root_path.exists() {
-        unsafe { *ptr_result = false };
-        return Data::from(CSTRING::from(format!("Not existing path: {}", root_path.display()))).into_raw_pointer()
-    }
+    match dll_finder::list_all_dll(&root_path) {
+        Ok(list) => {
+            unsafe { *ptr_result = true };
 
-    let dir = match std::fs::read_dir(&root_path) {
-        Ok(dir) => dir,
+            Data::from(list.into_iter().map(|line| {
+                Data::from(line.into_iter().map(|item| Data::from(CSTRING::from(item)))
+                .collect::<Vec<Data>>())
+            }).collect::<Vec<Data>>())
+            .into_raw_pointer()
+
+        }
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(format!("Failed to read root dir: {:?}", e))).into_raw_pointer()
+            return Data::from(CSTRING::from(format!("No dll found: {:?}", e))).into_raw_pointer()
         }
-    };
-
-    let mut created_dll_name = String::from(env!("CARGO_CRATE_NAME"));
-    created_dll_name.push_str(".dll");
-
-    let dirs = dir.into_iter().filter_map(|sub_dir| {
-        sub_dir.ok()
-        .and_then(|sub_dir| {
-            sub_dir.file_name().to_str()    
-            .and_then(|sub_dir_str| {
-                if sub_dir_str.ends_with(".dll") & !sub_dir_str.ends_with(&created_dll_name) {
-                    Some(Data::from(vec![Data::from(CSTRING::from(sub_dir_str.to_string()))]))
-                } else {
-                    None
-                }
-            })
-        })
-    }).collect::<Vec<Data>>();
-
-    unsafe { *ptr_result = true };
-
-    if dirs.len() == 0 {
-
-        Data::from(CSTRING::from(format!("No dll found"))).into_raw_pointer()
-    
-    } else {
-        Data::from(dirs).into_raw_pointer()
     }
+
 
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_dll_note(root: *mut Pointer, dll_name: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
-    let root_path = match copy_from_cstr(root) {
-        Ok(root_path) => PathBuf::from(root_path),
+pub extern "C" fn list_dll_dirs(default_root: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+
+    let root_path = match copy_from_cstr(default_root) {
+        Ok(default_root) => PathBuf::from(default_root),
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to parse passed default_root: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    match dll_finder::list_dll_dirs(&root_path) {
+        Ok(dirs) => {
+            unsafe { *ptr_result = true };
+            Data::from(dirs.into_iter().map(|dir| Data::from(vec![Data::from(CSTRING::from(dir))]))
+            .collect::<Vec<Data>>()).into_raw_pointer()
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("No dir found: {:?}", e))).into_raw_pointer()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn list_dll_under_dir(default_root: *mut Pointer, dir_name: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+    let default_root = match copy_from_cstr(default_root) {
+        Ok(default_root) => PathBuf::from(default_root),
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to parse passed default_root: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let dir_name = match copy_from_cstr(dir_name) {
+        Ok(dir_name) => dir_name,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to parse passed dir_name: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    match dll_finder::list_dll_under_dir(&default_root, &dir_name) {
+        Ok(dlls) => {
+            unsafe { *ptr_result = true };
+            Data::from(dlls.into_iter().map(|dll| Data::from(vec![Data::from(CSTRING::from(dll))]) )
+            .collect::<Vec<Data>>()).into_raw_pointer()
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("No dll found: {:?}", e))).into_raw_pointer()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn get_dll_note(default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+    let default_root_path = match copy_from_cstr(default_root) {
+        Ok(default_root) => PathBuf::from(default_root),
         Err(e) => {
             unsafe { *ptr_result = false };
             return Data::from(CSTRING::from(format!("Faield to parse passed root: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let root_path = match copy_from_cstr(dir_name).and_then(|dir_name| dll_finder::dir_name_to_dir(&default_root_path, &dir_name)) {
+        Ok(root_path) => PathBuf::from(root_path),
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to convert dir_name into dir: {:?}", e))).into_raw_pointer()
         }
     };
 
@@ -492,12 +533,20 @@ pub extern "C" fn get_dll_note(root: *mut Pointer, dll_name: *mut Pointer, ptr_r
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_dll_args_info(root: *mut Pointer, dll_name: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
-    let root_path = match copy_from_cstr(root) {
-        Ok(root_path) => PathBuf::from(root_path),
+pub extern "C" fn get_dll_args_info(default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+    let default_root_path = match copy_from_cstr(default_root) {
+        Ok(default_root) => PathBuf::from(default_root),
         Err(e) => {
             unsafe { *ptr_result = false };
             return Data::from(CSTRING::from(format!("Failed to parse passed root: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let root_path = match copy_from_cstr(dir_name).and_then(|dir_name| dll_finder::dir_name_to_dir(&default_root_path, &dir_name)) {
+        Ok(root_path) => PathBuf::from(root_path),
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to convert dir_name into dir: {:?}", e))).into_raw_pointer()
         }
     };
 
@@ -542,12 +591,20 @@ pub extern "C" fn get_dll_args_info(root: *mut Pointer, dll_name: *mut Pointer, 
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn call_dll(root: *mut Pointer, dll_name: *mut Pointer, ptr_args: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
-    let root_path = match copy_from_cstr(root) {
-        Ok(root_path) => PathBuf::from(root_path),
+pub extern "C" fn call_dll(default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_args: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+    let default_root_path = match copy_from_cstr(default_root) {
+        Ok(default_root_path) => PathBuf::from(default_root_path),
         Err(e) => {
             unsafe { *ptr_result = false };
             return Data::from(CSTRING::from(format!("Faield to parse passed root: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    let root_path = match copy_from_cstr(dir_name).and_then(|dir_name| dll_finder::dir_name_to_dir(&default_root_path, &dir_name)) {
+        Ok(root_path) => std::path::PathBuf::from(root_path),
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to convert dir_name into dir: {:?}", e))).into_raw_pointer()
         }
     };
 
