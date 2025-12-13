@@ -1,9 +1,9 @@
 use core::Pointer;
-use core::datatype::{Data, Value, string::{CSTRING, copy_from_cstr}};
+use core::datatype::{Data, string::{CSTRING, copy_from_cstr}};
 use dll_loader::DLL;
 use dll_finder;
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// It seems that VBA does not allow a function without any return value.
 #[unsafe(no_mangle)]

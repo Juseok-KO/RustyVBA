@@ -70,7 +70,7 @@ pub fn list_dll_dirs(default_dir: &std::path::Path) -> Result<Vec<String>, Strin
     let all_entries = read_list_text(default_dir)?;
 
     let dir_names = all_entries.into_iter().filter_map(|entry| {
-        if let (Some(name), Some(dir)) = (entry.get(0),entry.get(1)) {
+        if let (Some(name), Some(_dir)) = (entry.get(0),entry.get(1)) {
             Some(name.to_string())
         } else {
             None
