@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 /// Assumtion / Purpose of the library
 /// 1. DLLs can be found from default path where interface.dll file is located, and some explicitly specified paths. 
 /// 2. Users will specify paths with a text file which will be stored along with interface.dll
-/// 3. Within the text, the users will specifiy a path as a pair of its name and "path", and in the form of name : path, one in one line.
+/// 3. Within the text, the users will specifiy a path as a pair of its name and "path", and in the form of name = path, one in one line.
 /// 4. This library handles the task of handling the text file.
 /// 5. Some functions from this library are called, default path sould be provided. The calling VBA code would do so. 
 
