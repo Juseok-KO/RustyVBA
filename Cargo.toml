@@ -6,3 +6,4 @@ members = [
 
 [workspace.dependencies]
 dll_finder = { path = "./dll_finder" }
+rusqlite = { version = "0.37", features = ["bundled"]}
