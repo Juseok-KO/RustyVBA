@@ -540,3 +540,43 @@ where Data: From<D>{
         }
     }
 }
+
+#[cfg(feature="rusqlite")] pub use rusqlite;
+#[cfg(feature="rusqlite")] use rusqlite::types::{FromSql, FromSqlError, FromSqlResult, ValueRef};
+
+#[cfg(feature="rusqlite")]
+impl FromSql for Data {
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        let data = match value {
+            // To be updated
+            ValueRef::Blob(_blob) => {
+                Data::from(string::CSTRING::from(format!("Blob")))
+            }
+            ValueRef::Text(txt) => {
+                let buf = txt.iter().map(|b| *b).collect::<Vec<u8>>();
+                match String::from_utf8(buf) {
+                    Ok(string) => {
+                        Data::from(string::CSTRING::from(string))
+                    }
+                    Err(e) => {
+                        return FromSqlResult::Err(FromSqlError::Other(Box::new(e)))
+                    }
+                }
+            }
+            ValueRef::Integer(int) => {
+                Data::from(int)
+            }
+            ValueRef::Real(float) => {
+                Data::from(float)
+            }
+            ValueRef::Null => {
+                Data {
+                    t: TypeCode::None,
+                    d: Value::None
+                }
+            }
+        };
+
+        FromSqlResult::Ok(data)
+    }
+}
