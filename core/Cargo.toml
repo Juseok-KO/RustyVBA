@@ -11,4 +11,4 @@ rusqlite.workspace = true
 rusqlite.optional = true
 
 [features]
-default = [ "rusqlite" ]
+default = []
