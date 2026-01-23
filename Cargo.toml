@@ -1,3 +1,11 @@
+[package]
+name = "rusty_vba"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["lib"]
+
 [workspace]
 members = [
     "core", "dll_finder", "dll_interface", 
@@ -5,5 +13,18 @@ members = [
 ]
 
 [workspace.dependencies]
+core = { path = "./core" }
 dll_finder = { path = "./dll_finder" }
+dll_interface = { path = "./dll_interface" }
+dll_loader = { path = "./dll_loader" }
 rusqlite = { version = "0.37", features = ["bundled"]}
+
+[dependencies]
+core.workspace = true
+core.optional = true
+dll_finder.workspace = true
+dll_finder.optional = true
+dll_interface.workspace = true
+dll_interface.optional = true
+dll_loader.workspace = true
+dll_loader.optional = true

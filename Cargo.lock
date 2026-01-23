@@ -276,6 +276,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rusty_vba"
+version = "0.1.0"
+dependencies = [
+ "core",
+ "dll_finder",
+ "dll_interface",
+ "dll_loader",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
