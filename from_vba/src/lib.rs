@@ -692,7 +692,7 @@ pub extern "C" fn free_dll_result(ptr_dll: *mut Pointer, ptr_dll_result: *mut Po
         Ok(func) => {
             unsafe { 
                 *ptr_result = true;
-                Data::from(func(ptr_dll_result)).into()
+                Data::from(func(ptr_dll_result)).into_raw_pointer()
             }
         }
         Err(e) => {
