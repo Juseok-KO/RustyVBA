@@ -194,7 +194,7 @@ Private Declare PtrSafe Function free_dll_result Lib "{INTERFACE}" ( _
     ByVal ptr_dll As LongPtr, _
     ByVal ptr_dll_result As LongPtr, _
     ByVal ptr_result As LongPtr _
-)
+) As LongPtr
 
 Private Declare PtrSafe Function drop_dll Lib "{INTERFACE}" ( _
     ByVal ptr_dll As LongPtr _
@@ -616,7 +616,7 @@ Function RustyFuncCall(folder_name As String, func_name As String, ParamArray ar
         ptr_folder_name = StrPtr(folder_name)
         ptr_dll_name = StrPtr(func_name)
 
-        ptr_dll = get_dll_ptr(ptr_sll_root, prt_folder_name, ptr_dll_nane, ptr_result)
+        ptr_dll = get_dll_ptr(ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_result)
 
         If result = RUST_TRUE Then
 
