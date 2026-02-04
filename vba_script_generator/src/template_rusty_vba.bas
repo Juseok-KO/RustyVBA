@@ -622,18 +622,19 @@ Function RustyFuncCall(folder_name As String, func_name As String, ParamArray ar
 
             ptr_return = call_dll_func(ptr_dll, ptr_rust_args, ptr_result)
             drop_result = drop_data(ptr_rust_args)
+            RustyFuncCall = ReadPtrData(ptr_return)
             
             If result = RUST_TRUE Then
-                RustyFuncCall = ReadPtrData(ptr_return)
                 ptr_return = free_dll_result(ptr_dll, ptr_return, ptr_result)
 
                 If result = RUST_FALSE Then
                     RustyFuncCall = ReadPtrData(ptr_return)
                 End If
-                
+
                 drop_result = drop_data(ptr_return)
 
             Else
+
                 drop_result = drop_data(ptr_return)
             End If
 
