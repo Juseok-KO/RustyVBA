@@ -696,7 +696,7 @@ pub extern "C" fn free_dll_result(ptr_dll: *mut Pointer, ptr_dll_result: *mut Po
             }
         }
         Err(e) => {
-            unsafe { *ptr_err = false };
+            unsafe { *ptr_result = false };
             return Data::from(CSTRING::from(e)).into_raw_pointer()
         }
     }
