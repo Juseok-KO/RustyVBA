@@ -55,7 +55,7 @@ impl DLL {
     ///ptr_dll shuold be the one created by DLL::load_and_wrap()
     pub fn drop(ptr_dll: *mut Pointer) -> bool {
 
-        let dll = unsafe { Box::from_raw(ptr_dll as *mut Dll) };
+        let dll = unsafe { Box::from_raw(ptr_dll as *mut DLL) };
         drop(dll);
         true
     }
