@@ -5,5 +5,6 @@ fn test() {
 
 pub mod datatype;
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct Pointer;
