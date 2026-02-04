@@ -654,7 +654,7 @@ pub extern "C" fn call_dll_func(ptr_dll: *mut Pointer, ptr_args: *mut Pointer, p
                     let mut err_msg = if let Value::CSTRING(err_msg) = err_msg.get_value() {
 
                         match err_msg.get_string() {
-                            Ok(err_msg) => dll_err_msg,
+                            Ok(dll_err_msg) => dll_err_msg,
                             Err(e) => e,
                         }
                     } else {
