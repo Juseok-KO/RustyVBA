@@ -1,5 +1,5 @@
 use core::Pointer;
-use core::datatype::{Data, string::{CSTRING, copy_from_cstr}};
+use core::datatype::{Data, string::{CSTRING, copy_from_cstr}, Value};
 use dll_loader::DLL;
 use dll_finder;
 
@@ -591,7 +591,7 @@ pub extern "C" fn get_dll_args_info(default_root: *mut Pointer, dir_name: *mut P
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn call_dll(default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_args: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+pub extern "C" fn get_dll_ptr(default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
     let default_root_path = match copy_from_cstr(default_root) {
         Ok(default_root_path) => PathBuf::from(default_root_path),
         Err(e) => {
@@ -628,22 +628,81 @@ pub extern "C" fn call_dll(default_root: *mut Pointer, dir_name: *mut Pointer, d
     .collect::<Vec<String>>()
     .join("\\");
 
-    let dll = match DLL::load(&full_path_str) {
-        Ok(dll) => dll,
+    match DLL::load_and_wrap(&full_path_str) {
+        Ok(dll) => {
+            unsafe { *ptr_result = true };
+            return dll
+        },
         Err(e) => {
             unsafe { *ptr_result = false };
             return Data::from(CSTRING::from(e)).into_raw_pointer()
         }
-    };
+    }
+}
 
-    match dll.get_prt_call_func() {
-        Ok(ptr_func) => {
-            unsafe { *ptr_result = true };
-            return unsafe { ptr_func(ptr_args, ptr_result) }
+/// When the dll function call failed, this caller first frees the return value from the dll, and return another error message allocated by itself.
+#[unsafe(no_mangle)]
+pub extern "C" fn call_dll_func(ptr_dll: *mut Pointer, ptr_args: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+
+    match DLL::get_ptr_call_func(ptr_dll){
+        Ok(func) => {
+            unsafe { 
+                let return_val = func(ptr_args, ptr_result);
+                if !*ptr_result {
+
+                    let err_msg = &*(return_val as *mut Data);
+                    let mut err_msg = if let Value::CSTRING(err_msg) = err_msg.get_value() {
+
+                        match err_msg.get_string() {
+                            Ok(dll_err_msg) => dll_err_msg,
+                            Err(e) => e,
+                        }
+                    } else {
+                        format!("Function call failed, without any available error message.")
+                    };
+
+                    match DLL::get_ptr_dealloc(ptr_dll) {
+                        Ok(dealloc) => {
+                            dealloc(return_val);
+                            err_msg.push_str(". Error value freed");
+                        }
+                        Err(e) => {
+                            err_msg.push_str(". Failed to free Error value");
+                        }
+                    }
+
+                    Data::from(CSTRING::from(err_msg)).into_raw_pointer()
+
+                } else {
+                    return_val
+                }
+            }
         }
         Err(e) => {
             unsafe { *ptr_result = false };
             return Data::from(CSTRING::from(e)).into_raw_pointer()
         }
     }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn free_dll_result(ptr_dll: *mut Pointer, ptr_dll_result: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+
+    match DLL::get_ptr_dealloc(ptr_dll) {
+        Ok(func) => {
+            unsafe { 
+                *ptr_result = true;
+                Data::from(func(ptr_dll_result)).into_raw_pointer()
+            }
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn drop_dll(ptr_dll: *mut Pointer) -> bool {
+    DLL::drop(ptr_dll)
 }

@@ -177,13 +177,28 @@ Private Declare PtrSafe Function get_dll_args_info Lib "{INTERFACE}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function call_dll Lib "{INTERFACE}" ( _
+Private Declare PtrSafe Function get_dll_ptr Lib "{INTERFACE}" ( _
     ByVal ptr_root As LongPtr, _
     ByVal ptr_dir_name As LongPtr, _
     ByVal ptr_dll_name As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function call_dll_func Lib "{INTERFACE}" ( _
+    ByVal ptr_dll As LongPtr, _
     ByVal ptr_args As LongPtr, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
+
+Private Declare PtrSafe Function free_dll_result Lib "{INTERFACE}" ( _
+    ByVal ptr_dll As LongPtr, _
+    ByVal ptr_dll_result As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function drop_dll Lib "{INTERFACE}" ( _
+    ByVal ptr_dll As LongPtr _
+) As Byte
 
 Private Declare PtrSafe Function MultiByteToWideChar Lib "kernel32" ( _
         ByVal CodePage As Long, ByVal dwFlags As Long, _
@@ -570,9 +585,11 @@ Function RustyFuncCall(folder_name As String, func_name As String, ParamArray ar
     Dim ptr_dll_root As LongPtr
     Dim ptr_folder_name As LongPtr
     Dim ptr_dll_name As LongPtr
+    Dim ptr_dll As LongPtr
     Dim result As Byte
+    Dim drop_result As Byte
     Dim ptr_result As LongPtr
-    Dim ptr_data As LongPtr
+    Dim ptr_return As LongPtr
 
     Dim ptr_rust_args As LongPtr
     Dim result_from_rust As Variant
@@ -599,11 +616,36 @@ Function RustyFuncCall(folder_name As String, func_name As String, ParamArray ar
         ptr_folder_name = StrPtr(folder_name)
         ptr_dll_name = StrPtr(func_name)
 
-        ptr_data = call_dll(ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_rust_args, ptr_result)
-        drop_result = drop_data(ptr_rust_args)
+        ptr_dll = get_dll_ptr(ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_result)
+
+        If result = RUST_TRUE Then
+
+            ptr_return = call_dll_func(ptr_dll, ptr_rust_args, ptr_result)
+            drop_result = drop_data(ptr_rust_args)
+            RustyFuncCall = ReadPtrData(ptr_return)
+            
+            If result = RUST_TRUE Then
+                ptr_return = free_dll_result(ptr_dll, ptr_return, ptr_result)
+
+                If result = RUST_FALSE Then
+                    RustyFuncCall = ReadPtrData(ptr_return)
+                End If
+
+                drop_result = drop_data(ptr_return)
+
+            Else
+
+                drop_result = drop_data(ptr_return)
+            End If
+
+            drop_result = drop_dll(ptr_dll)
+
+        Else
+
+            RustyFuncCall = ReadPtrData(ptr_dll)
+            drop_result = drop_data(ptr_dll)
         
-        RustyFuncCall = ReadPtrData(ptr_data)
-        drop_result = drop_data(ptr_data)
+        End If
         
     End If
 

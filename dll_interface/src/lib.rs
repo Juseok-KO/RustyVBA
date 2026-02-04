@@ -5,6 +5,7 @@ use std::marker::PhantomData;
 pub const INTERFACE_NAME_NOTE: &'static str = "note";
 pub const INTERFACE_NAME_ARGS_INFO: &'static str = "args_info";
 pub const INTERFACE_NAME_CALL_FUNC: &'static str = "call_func";
+pub const INTERFACE_NAME_DEALLOC: &'static str = "dealloc";
 
 #[derive(Debug)]
 pub struct Args<'a>{
@@ -29,6 +30,11 @@ pub trait VbaInterface {
     fn args_type() -> &'static [TypeCode];
 
     fn call_func(ptr_args: *mut Pointer, ptr_err: *mut bool) -> *mut Pointer;
+
+    fn dealloc(ptr_data: *mut Pointer) -> bool {
+        Data::drop(ptr_data);
+        true
+    }
 }
 
 
@@ -69,13 +75,17 @@ macro_rules! convert_into_dll_funcs {
                 Data::from(<$type>::args_type().into_iter().map(|t_code| Data::from(CSTRING::from(t_code.to_string())))
                 .collect::<Vec<Data>>())
             ])
-            .into_raw_pointer()
-            
+            .into_raw_pointer()   
         }
 
         #[unsafe(no_mangle)]
         pub extern "C" fn call_func(ptr_args: *mut Pointer, ptr_err: *mut bool) -> *mut Pointer {
             <$type>::call_func(ptr_args, ptr_err)
+        }
+
+        #[unsafe(no_mangle)]
+        pub extern "C" fn dealloc(ptr_data: *mut Pointer) -> bool {
+            <$type>::dealloc(ptr_data)
         }
     }
 }

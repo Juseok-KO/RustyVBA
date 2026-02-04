@@ -65,7 +65,7 @@ impl<T: Sized> RawArray<T> {
         }
     }
 
-    pub fn iter(&self) -> RawArrayIter<T> {
+    pub fn iter<'a>(&'a self) -> RawArrayIter<'a, T> {
         RawArrayIter { 
             ptr: self.ptr, 
             idx: 0, 
