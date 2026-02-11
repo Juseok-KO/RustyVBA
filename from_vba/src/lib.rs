@@ -709,30 +709,6 @@ pub extern "C" fn drop_dll(ptr_dll: *mut Pointer) -> bool {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn writer_lock() -> bool {
-    global_resource::writer_lock();
-    true
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn reader_lock() -> bool {
-    global_resource::reader_lock();
-    true
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn writer_release() -> bool {
-    global_resource::writer_release();
-    true
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn reader_release() -> bool {
-    global_resource::reader_release();
-    true
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn init_resources() -> *mut Pointer {
     global_resource::Resources::new()
 }
@@ -778,7 +754,16 @@ pub extern "C" fn set_resource(ptr_resources: *mut Pointer, item_key: *mut Point
         }
     };
 
-    match global_resource::Resources::set_item(ptr_resources, item_key, &default_root, &dir_name, &dll_name, ptr_args) {
+    let lt = ();
+    let resources = match global_resource::Resources::from_raw_ptr(ptr_resources, &lt) {
+        Ok(resource) => resource,
+        Err(e) => {
+            unsafe {*ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    match resources.write().map_err(|e| format!("Resources Write Lock Error: {:?}", e)).and_then(| mut r|r.set_item( item_key, &default_root, &dir_name, &dll_name, ptr_args)) {
         Ok(_) => { 
             unsafe { *ptr_result = true };
             return null::<Pointer>() as *mut Pointer
@@ -800,7 +785,16 @@ pub extern "C" fn get_resource(ptr_resources: *mut Pointer, item_key: *mut Point
         }
     };
 
-    match global_resource::Resources::get_item(ptr_resources, &item_key) {
+    let lt = ();
+    let resources = match global_resource::Resources::from_raw_ptr(ptr_resources, &lt) {
+        Ok(resources) => resources,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    match resources.read().map_err(|e| format!("Resources Read Lock Failed: {:?}", e)).and_then(|r| r.get_item(&item_key)) {
         Ok(res) => {
             unsafe { *ptr_result = true };
             return res
@@ -822,7 +816,16 @@ pub extern "C" fn del_resource(ptr_resources: *mut Pointer, item_key: *mut Point
         }
     };
 
-    match global_resource::Resources::del_item(ptr_resources, &item_key) {
+    let lt = ();
+    let resources = match global_resource::Resources::from_raw_ptr(ptr_resources, &lt) {
+        Ok(resources) => resources,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    match resources.write().map_err(|e| format!("Resource Write Lock Failed: {:?}", e)).and_then(|mut r| r.del_item(&item_key)) {
         Ok(_) => {
             unsafe { *ptr_result = true };
             return null::<Pointer>() as *mut Pointer

@@ -2,47 +2,7 @@ use core::Pointer;
 use core::datatype::{Data, Value};
 use std::ptr::null;
 use dll_loader::DLL;
-use std::sync::atomic::{AtomicI64, AtomicBool, Ordering};
-use std::thread::yield_now;
-
-const STATE: AtomicBool = AtomicBool::new(true);
-const COUNTER: AtomicI64 = AtomicI64::new(0);
-
-pub fn writer_lock() {
-
-    STATE.store(false, Ordering::Release);
-
-    while let Err(_e) = COUNTER.compare_exchange(0, -1, Ordering::Acquire, Ordering::Relaxed) {
-        yield_now();
-    }
-}
-
-pub fn writer_release() {
-
-    STATE.store(true, Ordering::Release);
-
-    while let Err(_e) = COUNTER.compare_exchange(-1, 0, Ordering::Acquire, Ordering::Relaxed) {
-        yield_now();
-    }
-}
-
-pub fn reader_lock() {
-
-    while !STATE.load(Ordering::Acquire) {
-        yield_now();
-    }
-
-    COUNTER.fetch_add(1, Ordering::Acquire);
-}
-
-pub fn reader_release() {
-
-    while !STATE.load(Ordering::Acquire) {
-        yield_now();
-    }
-
-    COUNTER.fetch_add(-1, Ordering::Acquire);
-}
+use std::sync::RwLock;
 
 #[repr(C)]
 pub struct Resource {
@@ -77,7 +37,7 @@ pub struct Resources {
 
 impl Resources {
     pub fn new() -> *mut Pointer {
-        let r = Box::leak(Box::new(Resources { inner: std::collections::HashMap::new() })) as *mut Resources as i64;
+        let r = Box::leak(Box::new(RwLock::new(Resources { inner: std::collections::HashMap::new() }))) as *mut RwLock<Resources> as i64;
         Data::from(r).into_raw_pointer()
     }
 
@@ -89,14 +49,14 @@ impl Resources {
         let addr = unsafe { Box::from_raw(ptr_r as *mut Data) };
         if let Value::I64(addr) = addr.get_value() {
 
-            let r = unsafe { Box::from_raw(*addr as usize as *const Resources as *mut Resources) };
+            let r = unsafe { Box::from_raw(*addr as usize as *const RwLock<Resources> as *mut RwLock<Resources>) };
 
         } else {
             return
         }
     }
 
-    pub fn as_mut(ptr_r: *mut Pointer, _lt: &()) -> Result<&mut Resources, String> {
+    pub fn from_raw_ptr(ptr_r: *mut Pointer, _lt: &()) -> Result<&RwLock<Resources>, String> {
         if ptr_r.is_null() {
             return Err(format!("Null pointer as resources"))
         }
@@ -106,25 +66,21 @@ impl Resources {
             return Err(format!("ptr_r does not contain a valid address"))
         };
 
-        let r = unsafe { &mut *(*addr as *const Resources as *mut Resources) };
+        let r = unsafe { &*(*addr as *const RwLock<Resources>) };
 
         Ok(r)
         
     }
 
-    pub fn get_item(ptr_r: *mut Pointer, key: &str) -> Result<*mut Pointer, String> {
+    pub fn get_item(&self, key: &str) -> Result<*mut Pointer, String> {
 
-        let lt = ();
-        Self::as_mut(ptr_r, &lt)?
-        .inner.get(key)
+        self.inner.get(key)
         .ok_or(format!("No value with the key {}", key))
         .map(|r| r.data)
     }
 
-    pub fn set_item(ptr_r: *mut Pointer, item_key: String, default_root: &str, dir_name: &str, dll_name: &str, ptr_args: *mut Pointer) -> Result<(), String> {
+    pub fn set_item(&mut self, item_key: String, default_root: &str, dir_name: &str, dll_name: &str, ptr_args: *mut Pointer) -> Result<(), String> {
 
-        let lt = ();
-        let r = Resources::as_mut(ptr_r, &lt)?;
         let default_root = std::path::Path::new(default_root);
         let mut dll_path = std::path::PathBuf::from(dll_finder::dir_name_to_dir(default_root, dir_name)?);
         dll_path.push(dll_name);
@@ -146,7 +102,7 @@ impl Resources {
 
         if result {
 
-            r.inner.insert(item_key, Resource { dll, data: return_val} );
+            self.inner.insert(item_key, Resource { dll, data: return_val} );
             Ok(())
 
         } else {
@@ -179,12 +135,10 @@ impl Resources {
         
     }
 
-    pub fn del_item(ptr_r: *mut Pointer, key: &str) -> Result<(), String> {
+    pub fn del_item(&mut self, key: &str) -> Result<(), String> {
 
-        let lt = ();
-        let r = Resources::as_mut(ptr_r, &lt)?;
 
-        if let Some(deleted) = r.inner.remove(key) {
+        if let Some(deleted) = self.inner.remove(key) {
             drop(deleted);
         }
 
