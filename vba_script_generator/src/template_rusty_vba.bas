@@ -213,7 +213,7 @@ Private Declare PtrSafe Function reader_release Lib "{INTERFACE}" () as Byte
 Private Declare PtrSafe Function init_resources Lib "{INTERFACE}" () As LongPtr
 
 Private Declare PtrSafe Function drop_resources Lib "{INTERFACE}" ( _
-    ByVal ptr_resources As LongPtr
+    ByVal ptr_resources As LongPtr _
 ) As Byte
 
 Private Declare PtrSafe Function set_resource Lib "{INTERFACE}" ( _
