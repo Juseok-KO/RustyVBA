@@ -206,17 +206,17 @@ Private Declare PtrSafe Function writer_lock Lib "{INTERFACE}" () As Byte
 
 Private Declare PtrSafe Function reader_lock Lib "{INTERFACE}" () As Byte
 
-Private Declare PtrSafe Function writer_release "{INTERFACE}" () As Byte
+Private Declare PtrSafe Function writer_release Lib "{INTERFACE}" () As Byte
 
-Private Declare PtrSafe Function reader_release "{INTERFACE}" () as Byte
+Private Declare PtrSafe Function reader_release Lib "{INTERFACE}" () as Byte
 
-Private Declare PtrSafe Function init_resources "{INTERFACE}" () As LongPtr
+Private Declare PtrSafe Function init_resources Lib "{INTERFACE}" () As LongPtr
 
-Private Declare PtrSafe Function drop_resources "{INTERFACE}" ( _
+Private Declare PtrSafe Function drop_resources Lib "{INTERFACE}" ( _
     ByVal ptr_resources As LongPtr
 ) As Byte
 
-Private Declare PtrSafe Function set_resource "{INTERFACE}" ( _
+Private Declare PtrSafe Function set_resource Lib "{INTERFACE}" ( _
     ByVal ptr_resources As LongPtr, _
     ByVal ptr_item_key As LongPtr, _
     ByVal ptr_default_root As LongPtr, _
@@ -226,13 +226,13 @@ Private Declare PtrSafe Function set_resource "{INTERFACE}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function get_resource "{INTERFACE}" ( _
+Private Declare PtrSafe Function get_resource Lib "{INTERFACE}" ( _
     ByVal ptr_resources As LongPtr, _
     ByVal ptr_item_key As LongPtr, _
     ByVal ptr_result As LongPtr
 ) As LongPtr
 
-Private Declare PtrSafe Function del_resource "{INTERFACE}" ( _
+Private Declare PtrSafe Function del_resource Lib "{INTERFACE}" ( _
     ByVal ptr_resources As LongPtr, _
     ByVal ptr_item_key As LongPtr, _
     ByVal ptr_result As LongPtr _
