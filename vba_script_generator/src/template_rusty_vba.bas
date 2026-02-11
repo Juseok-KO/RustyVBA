@@ -13,6 +13,8 @@ Const TYPE_ARRAY As LongLong = 9
 Const RUST_TRUE As Byte = 1
 Const RUST_FALSE As Byte = 0
 
+Public PTR_RESOURCES As LongPtr
+
 Const DLL_DIR_ROOT As String = "{DLL_ROOT}"
 
 Private Declare PtrSafe Function drop_data Lib "{INTERFACE}" ( _
@@ -199,6 +201,44 @@ Private Declare PtrSafe Function free_dll_result Lib "{INTERFACE}" ( _
 Private Declare PtrSafe Function drop_dll Lib "{INTERFACE}" ( _
     ByVal ptr_dll As LongPtr _
 ) As Byte
+
+Private Declare PtrSafe Function writer_lock Lib "{INTERFACE}" () As Byte
+
+Private Declare PtrSafe Function reader_lock Lib "{INTERFACE}" () As Byte
+
+Private Declare PtrSafe Function writer_release "{INTERFACE}" () As Byte
+
+Private Declare PtrSafe Function reader_release "{INTERFACE}" () as Byte
+
+Private Declare PtrSafe Function init_resources "{INTERFACE}" () As LongPtr
+
+Private Declare PtrSafe Function drop_resources "{INTERFACE}" ( _
+    ByVal ptr_resources As LongPtr
+) As Byte
+
+Private Declare PtrSafe Function set_resource "{INTERFACE}" ( _
+    ByVal ptr_resources As LongPtr, _
+    ByVal ptr_item_key As LongPtr, _
+    ByVal ptr_default_root As LongPtr, _
+    ByVal ptr_dir_name As LongPtr, _
+    ByVal ptr_dll_name As LongPtr, _
+    ByVal ptr_args As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function get_resource "{INTERFACE}" ( _
+    ByVal ptr_resources As LongPtr, _
+    ByVal ptr_item_key As LongPtr, _
+    ByVal ptr_result As LongPtr
+) As LongPtr
+
+Private Declare PtrSafe Function del_resource "{INTERFACE}" ( _
+    ByVal ptr_resources As LongPtr, _
+    ByVal ptr_item_key As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+ 
+Private Declare PtrSafe Function 
 
 Private Declare PtrSafe Function MultiByteToWideChar Lib "kernel32" ( _
         ByVal CodePage As Long, ByVal dwFlags As Long, _
@@ -650,3 +690,114 @@ Function RustyFuncCall(folder_name As String, func_name As String, ParamArray ar
     End If
 
 End Function
+
+Private Function InitResources() As Byte
+
+    PTR_RESOURCES = init_resources
+
+    InitResources = RUST_TRUE
+
+End Function 
+
+Private Function DropResources() As Byte
+
+    DropResources = drop_resources(PTR_RESOURCES)
+
+End Function
+
+Private Function RustySetResource(item_key As String, folder_name As String, func_name As String, ParamArray args() As Variant ) As Byte
+    Dim ptr_dll_root As LongPtr
+    Dim ptr_item_key As LongPtr
+    Dim ptr_folder_name As LongPtr
+    Dim ptr_dll_name As LongPtr
+    Dim result As Byte
+    Dim set_result As LongPtr
+    Dim ptr_result As LongPtr
+    Dim lock_result As Byte
+
+    Dim ptr_rust_args As LongPtr
+    Dim vba_args() As Variant
+
+    Dim i As Long
+
+    ReDim vba_args(LBound(args) To UBound(args))
+    For i = LBound(args) To UBound(args)
+        vba_args(i) = args(i)
+    Next i
+
+    ptr_rust_args = IntoRustArgs(vba_args)
+
+    If ptr_rust_args = 0 Then
+        MsgBox "Failed to set " & item_key &" : invaild params"
+        RustySetResource = RUST_FALSE
+    Else
+
+        result = RUST_TRUE
+
+        ptr_result = VarPtr(result)
+        ptr_dll_root = StrPtr(DLL_DIR_ROOT)
+        ptr_item_key = StrPtr(item_key)
+        ptr_folder_name = StrPtr(folder_name)
+        ptr_dll_name = StrPtr(func_name)
+
+        lock_result = writer_lock()
+        set_result = set_resource(PTR_RESOURCES, ptr_item_key, ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_rust_args, ptr_result)
+        lock_result = writer_release()
+
+        If result = RUST_TRUE Then
+            RustySetResource = RUST_TRUE
+        Else
+            MsgBox "Failed to set " & item_key &" : " & ReadPtrData(set_result)
+            drop_data(set_result)
+
+        End If
+    End If
+
+End Function
+
+Function RustyGetResource(item_key As String) As Variant
+    Dim ptr_item_key As LongPtr
+    Dim result As Byte
+    Dim ptr_result As LongPtr
+    Dim lock_result As Byte
+    Dim ptr_resource As LongPtr
+
+    result = RUST_TRUE
+    ptr_result = VarPtr(result)
+    ptr_item_key = StrPtr(item_key)
+
+    lock_result = reader_lock()
+    ptr_resource = get_resource(PTR_RESOURCES, ptr_item_key, ptr_result)
+    lock_result = reader_release()
+
+    RustyGetResource = ReadPtrData(ptr_resource)
+
+    If result = RUST_FALSE Then
+        drop_data(ptr_resource)
+    End If
+
+End Function
+
+Private Function RustyDelResource(item_key As String) As Variant
+    Dim ptr_item_key As LongPtr
+    Dim ptr_result As LongPtr
+    Dim lock_result As Byte
+    Dim ptr_data As LongPtr
+
+    result = RUST_TRUE
+    ptr_result = VarPtr(result)
+    ptr_item_key = StrPtr(item_key)
+
+    lock_result = writer_lock()
+    data_result = del_resource(PTR_RESOURCES, ptr_item_key, ptr_result)
+    lock_result = writer_release()
+
+    If result = RUST_TRUE Then 
+        RustyDelResource = RUST_TRUE
+    Else 
+        RustyDelResource = ReadPtrData(ptr_data)
+        drop_data(ptr_data)
+
+    End If
+
+End Function    

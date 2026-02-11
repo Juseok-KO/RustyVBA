@@ -1,13 +1,9 @@
 [package]
-name = "from_vba"
+name = "global_resource"
 version = "0.1.0"
 edition = "2024"
-
-[lib]
-crate-type = ["cdylib"]
 
 [dependencies]
 core.workspace = true
 dll_loader.workspace = true
 dll_finder.workspace = true
-global_resource.workspace = true

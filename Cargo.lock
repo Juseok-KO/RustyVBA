@@ -188,6 +188,16 @@ dependencies = [
  "core",
  "dll_finder",
  "dll_loader",
+ "global_resource",
+]
+
+[[package]]
+name = "global_resource"
+version = "0.1.0"
+dependencies = [
+ "core",
+ "dll_finder",
+ "dll_loader",
 ]
 
 [[package]]
@@ -283,6 +293,7 @@ dependencies = [
  "dll_finder",
  "dll_interface",
  "dll_loader",
+ "global_resource",
 ]
 
 [[package]]
