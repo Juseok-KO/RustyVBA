@@ -229,7 +229,7 @@ Private Declare PtrSafe Function set_resource Lib "{INTERFACE}" ( _
 Private Declare PtrSafe Function get_resource Lib "{INTERFACE}" ( _
     ByVal ptr_resources As LongPtr, _
     ByVal ptr_item_key As LongPtr, _
-    ByVal ptr_result As LongPtr
+    ByVal ptr_result As LongPtr _
 ) As LongPtr
 
 Private Declare PtrSafe Function del_resource Lib "{INTERFACE}" ( _
@@ -237,8 +237,7 @@ Private Declare PtrSafe Function del_resource Lib "{INTERFACE}" ( _
     ByVal ptr_item_key As LongPtr, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
- 
-Private Declare PtrSafe Function 
+
 
 Private Declare PtrSafe Function MultiByteToWideChar Lib "kernel32" ( _
         ByVal CodePage As Long, ByVal dwFlags As Long, _
