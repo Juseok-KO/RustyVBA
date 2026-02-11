@@ -7,5 +7,5 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
-core = { path = "./../core" }
-dll_interface = { path = "./../dll_interface" }
+core.workspace = true
+dll_interface.workspace = true

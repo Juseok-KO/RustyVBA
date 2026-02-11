@@ -1,5 +1,6 @@
 use core::Pointer;
 use core::datatype::{Data, string::{CSTRING, copy_from_cstr}, Value};
+use std::ptr::null;
 use dll_loader::DLL;
 use dll_finder;
 
@@ -705,4 +706,130 @@ pub extern "C" fn free_dll_result(ptr_dll: *mut Pointer, ptr_dll_result: *mut Po
 #[unsafe(no_mangle)]
 pub extern "C" fn drop_dll(ptr_dll: *mut Pointer) -> bool {
     DLL::drop(ptr_dll)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn writer_lock() -> bool {
+    global_resource::writer_lock();
+    true
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn reader_lock() -> bool {
+    global_resource::reader_lock();
+    true
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn writer_release() -> bool {
+    global_resource::writer_release();
+    true
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn reader_release() -> bool {
+    global_resource::reader_release();
+    true
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn init_resources() -> *mut Pointer {
+    global_resource::Resources::new()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn drop_resources(ptr_resources: *mut Pointer) -> bool {
+    global_resource::Resources::drop(ptr_resources);
+    true
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn set_resource(ptr_resources: *mut Pointer, item_key: *mut Pointer, default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_args: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+
+    let item_key = match copy_from_cstr(ptr_cstr) {
+        Ok(item_key) => item_key,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    let default_root = match copy_from_cstr(default_root) {
+        Ok(default_root) => default_root,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    let dir_name = match copy_from_cstr(dir_name) {
+        Ok(dir_name) => dir_name,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    let dll_name = match copy_from_cstr(dll_name) {
+        Ok(dll_name) => dll_name,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    match global_resource::Resources::set_item(ptr_resources, item_key, &default_root, &dir_name, &dll_name, ptr_args) {
+        Ok(_) => { 
+            unsafe { *ptr_result = true };
+            return null() as *mut Pointer
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn get_resource(ptr_resources: *mut Pointer, item_key: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+    let item_key = match copy_from_cstr(ptr_cstr) {
+        Ok(item_key) => item_key,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    match global_resource::Resources::get_item(ptr_resources, &item_key) {
+        Ok(res) => {
+            unsafe { *ptr_result = true };
+            return res
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn del_resource(ptr_resources: *mut Pointer, item_key: *mut pointer, ptr_result: *mut bool) -> *mut Pointer {
+    let item_key = match copy_from_cstr(ptr_cstr) {
+        Ok(item_key) => item_key,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    };
+
+    match global_resource::Resources::del_item(ptr_resources, &item_key) {
+        Ok(_) => {
+            unsafe { *ptr_result = true };
+            return null() as *mut Pointer
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
+        }
+    }
 }

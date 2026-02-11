@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-core = { path = "../core" }
-dll_interface = { path = "./../dll_interface" }
+core.workspace = true
+dll_interface.workspace = true
 
 windows = { version = "0.62", features = ["Win32_System", "Win32_System_LibraryLoader"] }
