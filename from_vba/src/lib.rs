@@ -746,7 +746,7 @@ pub extern "C" fn drop_resources(ptr_resources: *mut Pointer) -> bool {
 #[unsafe(no_mangle)]
 pub extern "C" fn set_resource(ptr_resources: *mut Pointer, item_key: *mut Pointer, default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_args: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
 
-    let item_key = match copy_from_cstr(ptr_cstr) {
+    let item_key = match copy_from_cstr(item_key) {
         Ok(item_key) => item_key,
         Err(e) => {
             unsafe { *ptr_result = false };
@@ -781,7 +781,7 @@ pub extern "C" fn set_resource(ptr_resources: *mut Pointer, item_key: *mut Point
     match global_resource::Resources::set_item(ptr_resources, item_key, &default_root, &dir_name, &dll_name, ptr_args) {
         Ok(_) => { 
             unsafe { *ptr_result = true };
-            return null() as *mut Pointer
+            return null::<Pointer>() as *mut Pointer
         }
         Err(e) => {
             unsafe { *ptr_result = false };
@@ -792,7 +792,7 @@ pub extern "C" fn set_resource(ptr_resources: *mut Pointer, item_key: *mut Point
 
 #[unsafe(no_mangle)]
 pub extern "C" fn get_resource(ptr_resources: *mut Pointer, item_key: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
-    let item_key = match copy_from_cstr(ptr_cstr) {
+    let item_key = match copy_from_cstr(item_key) {
         Ok(item_key) => item_key,
         Err(e) => {
             unsafe { *ptr_result = false };
@@ -813,8 +813,8 @@ pub extern "C" fn get_resource(ptr_resources: *mut Pointer, item_key: *mut Point
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn del_resource(ptr_resources: *mut Pointer, item_key: *mut pointer, ptr_result: *mut bool) -> *mut Pointer {
-    let item_key = match copy_from_cstr(ptr_cstr) {
+pub extern "C" fn del_resource(ptr_resources: *mut Pointer, item_key: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+    let item_key = match copy_from_cstr(item_key) {
         Ok(item_key) => item_key,
         Err(e) => {
             unsafe { *ptr_result = false };
@@ -825,7 +825,7 @@ pub extern "C" fn del_resource(ptr_resources: *mut Pointer, item_key: *mut point
     match global_resource::Resources::del_item(ptr_resources, &item_key) {
         Ok(_) => {
             unsafe { *ptr_result = true };
-            return null() as *mut Pointer
+            return null::<Pointer>() as *mut Pointer
         }
         Err(e) => {
             unsafe { *ptr_result = false };

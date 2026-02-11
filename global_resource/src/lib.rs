@@ -54,7 +54,7 @@ impl Drop for Resource {
     fn drop(&mut self) {
 
 
-        let dealloc = match unsafe { DLL::get_ptr_dealloc(ptr_dll) }  {
+        let dealloc = match unsafe { DLL::get_ptr_dealloc(self.dll) }  {
             Ok(dealloc) => dealloc,
             Err(e) => {
                 return 
@@ -63,9 +63,10 @@ impl Drop for Resource {
 
         unsafe { dealloc(self.data) };
 
-        self.data = null() as *mut Pointer;
+        self.data = null::<Pointer>() as *mut Pointer;
         let dll = unsafe { Box::from_raw(self.dll as *mut DLL) };
-        self.dll = null() as *mut Pointer;
+        self.dll = null::<Pointer>() as *mut Pointer;
+        drop(dll);
 
     }
 }
@@ -88,14 +89,14 @@ impl Resources {
         let addr = unsafe { Box::from_raw(ptr_r as *mut Data) };
         if let Value::I64(addr) = addr.get_value() {
 
-            let r = unsafe { Box::from_raw(*addr as usize as *const Resouces as *mut Resources) };
+            let r = unsafe { Box::from_raw(*addr as usize as *const Resources as *mut Resources) };
 
         } else {
             return
         }
     }
 
-    pub fn as_mut(ptr_r: *mut Pointer) -> Result<&mut Resources, String> {
+    pub fn as_mut(ptr_r: *mut Pointer, _lt: &()) -> Result<&mut Resources, String> {
         if ptr_r.is_null() {
             return Err(format!("Null pointer as resources"))
         }
@@ -113,7 +114,8 @@ impl Resources {
 
     pub fn get_item(ptr_r: *mut Pointer, key: &str) -> Result<*mut Pointer, String> {
 
-        Self::as_mut(ptr_r)?
+        let lt = ();
+        Self::as_mut(ptr_r, &lt)?
         .inner.get(key)
         .ok_or(format!("No value with the key {}", key))
         .map(|r| r.data)
@@ -121,9 +123,10 @@ impl Resources {
 
     pub fn set_item(ptr_r: *mut Pointer, item_key: String, default_root: &str, dir_name: &str, dll_name: &str, ptr_args: *mut Pointer) -> Result<(), String> {
 
-        let r = Resources::as_mut(ptr_r)?;
-
-        let mut dll_path = std::path::PathBuf::from(dll_finder::dir_name_to_dir(default_dir, dir_name)?);
+        let lt = ();
+        let r = Resources::as_mut(ptr_r, &lt)?;
+        let default_root = std::path::Path::new(default_root);
+        let mut dll_path = std::path::PathBuf::from(dll_finder::dir_name_to_dir(default_root, dir_name)?);
         dll_path.push(dll_name);
 
         if !dll_path.exists() {
@@ -135,7 +138,7 @@ impl Resources {
         .join("\\");
 
         let dll = dll_loader::DLL::load_and_wrap(&dll_path)?;
-        let func = DLL::get_ptr_call_func(ptr_dll)?;
+        let func = DLL::get_ptr_call_func(dll)?;
 
         let mut result = true;
 
@@ -143,7 +146,7 @@ impl Resources {
 
         if result {
 
-            r.inner.insert(item_key, Resource { dll, data: result_val} );
+            r.inner.insert(item_key, Resource { dll, data: return_val} );
             Ok(())
 
         } else {
@@ -178,10 +181,11 @@ impl Resources {
 
     pub fn del_item(ptr_r: *mut Pointer, key: &str) -> Result<(), String> {
 
-        let r = Resources::as_mut(ptr_r)?;
+        let lt = ();
+        let r = Resources::as_mut(ptr_r, &lt)?;
 
         if let Some(deleted) = r.inner.remove(key) {
-            drop(Resource);
+            drop(deleted);
         }
 
         Ok(())
