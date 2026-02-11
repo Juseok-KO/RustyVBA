@@ -693,6 +693,7 @@ End Function
 Private Function RustyDropResources() As Byte
 
     DropResources = drop_resources(PTR_RESOURCES)
+    PTR_RESOURCES = 0
 
 End Function
 
