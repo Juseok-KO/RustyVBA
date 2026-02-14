@@ -686,7 +686,7 @@ Private Function RustyInitResources() As Byte
 
     PTR_RESOURCES = init_resources()
 
-    InitResources = RUST_TRUE
+    RustyInitResources = RUST_TRUE
 
 End Function 
 
