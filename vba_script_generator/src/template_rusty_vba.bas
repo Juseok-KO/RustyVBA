@@ -697,7 +697,7 @@ Private Function RustyDropResources() As Byte
 
 End Function
 
-Function RustySetResource(item_key As String, folder_name As String, func_name As String, ParamArray args() As Variant ) As Byte
+Function RustySetResource(item_key As String, folder_name As String, func_name As String, ParamArray args() As Variant ) As Variant
     Dim ptr_dll_root As LongPtr
     Dim ptr_item_key As LongPtr
     Dim ptr_folder_name As LongPtr
@@ -737,7 +737,7 @@ Function RustySetResource(item_key As String, folder_name As String, func_name A
         If result = RUST_TRUE Then
             RustySetResource = RUST_TRUE
         Else
-            MsgBox "Failed to set " & item_key &" : " & ReadPtrData(set_result)
+            RustySetResource = "Failed to set " & item_key &" : " & ReadPtrData(set_result)
             drop_data(set_result)
 
         End If
