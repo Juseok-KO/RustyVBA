@@ -3,6 +3,7 @@ use core::datatype::{Data, string::{CSTRING, copy_from_cstr}, Value};
 use std::ptr::null;
 use dll_loader::DLL;
 use dll_finder;
+use dynamic_library::{DynamicLibrary, LibCollection};
 
 use std::path::PathBuf;
 
@@ -325,70 +326,6 @@ pub extern "C" fn get_elem_ptr(ptr_arr: *const Pointer, row:i32, col: i32, ptr_r
     }
 }
 
-#[cfg(debug_assertions)]
-#[unsafe(no_mangle)]
-pub extern "C" fn string_test() -> *const Pointer {
-    Data::from(CSTRING::from(String::from("Greeting from Rust!"))).into_raw_pointer()
-}
-
-#[cfg(debug_assertions)]
-#[unsafe(no_mangle)]
-pub extern "C" fn string_pass_test(ptr_cstr: *const Pointer) -> *const Pointer {
-
-    let returned = match core::datatype::string::copy_from_cstr(ptr_cstr) {
-        Ok(mut copied) => {
-            copied.push_str(" <Rust>　このすごい言語!");
-            copied
-        }
-        Err(e) => {
-            e
-        }
-    };
-
-    Data::from(CSTRING::from(returned)).into_raw_pointer()
-}
-
-#[cfg(debug_assertions)]
-#[unsafe(no_mangle)]
-pub extern "C" fn array_test() -> *const Pointer {
-
-    Data::from(vec![
-        Data::from(vec![Data::from(CSTRING::from(String::from("Hello, this is Rust"))), Data::from(100_i8), Data::from(true)])
-        ]
-    ).into_raw_pointer()
-}
-
-#[test]
-fn array_sample_test() {
-
-    
-    let ptr_arr = Data::from(vec![
-        Data::from(vec![Data::from(CSTRING::from(String::from("Hello, this is Rust"))), Data::from(100_i8), Data::from(true)])
-        ]
-    ).into_raw_pointer();
-
-    let mut result: bool = false;
-
-    let ptr_num_row = arr_num_rows(ptr_arr, &mut result as *mut bool);
-
-    if result {
-        println!("num_row {}", get_i32(ptr_num_row as *const Pointer))
-    }
-
-    println!("{:?}", drop_data(ptr_num_row));
-
-    let ptr_num_col = arr_num_cols(ptr_arr, &mut result as *mut bool);
-
-    if result {
-        println!("num_col {}", get_i32(ptr_num_col as *const Pointer))
-    }
-
-    println!("{:?}", drop_data(ptr_num_col));
-
-    println!("{:?}", drop_data(ptr_arr));
-
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn list_dll(default_root: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
 
@@ -476,20 +413,43 @@ pub extern "C" fn list_dll_under_dir(default_root: *mut Pointer, dir_name: *mut 
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_dll_note(default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
-    let default_root_path = match copy_from_cstr(default_root) {
-        Ok(default_root) => PathBuf::from(default_root),
+pub extern "C" fn init_dylib_collection() -> *mut Pointer {
+    let ptr = LibCollection::new();
+    dynamic_library::scan(ptr);
+    ptr
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn drop_dylib_collection(ptr_collection: *mut Pointer) -> bool {
+    LibCollection::drop(ptr_collection);
+    true
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn get_or_load_lib(ptr_collection: *mut Pointer, deafult_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Poiner, ptr_result: *mut bool) -> *mut Pointer {
+
+    let lt = ();
+    let lib_collection = match LibCollection::from_raw_ptr(ptr_collection, &lt) {
+        Ok(lib_collection) => lib_collection,
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(format!("Faield to parse passed root: {:?}", e))).into_raw_pointer()
+            return Data::from(CSTRING::from(e)).into_raw_pointer()
         }
     };
 
-    let root_path = match copy_from_cstr(dir_name).and_then(|dir_name| dll_finder::dir_name_to_dir(&default_root_path, &dir_name)) {
-        Ok(root_path) => PathBuf::from(root_path),
+    let default_root = match copy_from_cstr(default_root) {
+        Ok(default_root) => default_root,
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(format!("Failed to convert dir_name into dir: {:?}", e))).into_raw_pointer()
+            return Data::from(CSTRING::from(format!("Failed to parse default_root: {}", e))).into_raw_pointer()
+        }
+    };
+
+    let dir_name = match copy_from_cstr(dir_name) {
+        Ok(dir_name) => dir_name,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to parse dir_name: {}", e))).into_raw_pointer()
         }
     };
 
@@ -497,191 +457,157 @@ pub extern "C" fn get_dll_note(default_root: *mut Pointer, dir_name: *mut Pointe
         Ok(dll_name) => dll_name,
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(format!("Failed to parse dll name: {:?}", e))).into_raw_pointer()
+            return Data::from(CSTRING::from(format!("Faield to parse dll_name: {}", e))).into_raw_pointer()
         }
     };
 
-    let mut full_dll_path = root_path;
-    full_dll_path.push(&dll_name);
+    match lib_collection.read().map(|read_lock| {
+        read_lock.get_lib(dir_name.clone(), dll_name.clone())
+        .map(|dll| dll.into_ptr())
+    })
+    {
+        Ok(Some(ptr_dll)) => {
+            unsafe { *ptr_result = true };
+            return ptr_dll
+        }
+        Ok(None) => {
 
-    if !full_dll_path.exists() {
-        unsafe { *ptr_result = false };
-        return Data::from(CSTRING::from(format!("Specified dll_path does not exist: {}", full_dll_path.display()))).into_raw_pointer()
-    }
-
-    let full_path_str = full_dll_path.into_iter().filter_map(|elem| elem.to_str().map(|s| s.to_string()))
-    .collect::<Vec<String>>()
-    .join("\\");
-
-    let dll = match DLL::load(&full_path_str) {
-        Ok(dll) => dll,
+        }
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(e)).into_raw_pointer()
+            return Data::from(CSTRING::from(format!("Failed to read-lock the dylib collection: {:?}", e))).into_raw_pointer()
         }
-    };
+    }
+
+    match lib_collection.write().map(|write_lock| {
+        write_lock.load_lib(default_root, dir_name.clone(), dll_name.clone())
+    }) 
+    {
+        Ok(Ok(_)) => {
+
+        }
+        Ok(Err(e)) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to load the lib: {}", e))).into_raw_pointer()
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to write-lock the dylib collection: {:?}", e))).into_raw_pointer()
+        }
+    }
+
+    match lib_collection.read().map(|read_lock| {
+        read_lock.get_lib(dir_name, dll_name)
+        .map(|dll| dll.into_ptr())
+    }) {
+        Ok(Some(ptr_dll)) => {
+            unsafe { *ptr_result = true };
+            return ptr_dll
+        }
+        Ok(None) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to get the dylib after loading: None"))).into_raw_pointer()
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return  Data::from(CSTRING::from(format!("Failed to read-lock the dylib collection after loading: {:?}", e))).into_raw_pointer()
+        }
+    }
     
-    match dll.get_ptr_note() {
-        Ok(ptr_note) => {
-            unsafe { *ptr_result = true };
-            return unsafe { ptr_note() }
-        }
-        Err(e) => {
-            unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(e)).into_raw_pointer()
-        }
-    }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_dll_args_info(default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
-    let default_root_path = match copy_from_cstr(default_root) {
-        Ok(default_root) => PathBuf::from(default_root),
-        Err(e) => {
-            unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(format!("Failed to parse passed root: {:?}", e))).into_raw_pointer()
-        }
-    };
+pub extern "C" fn get_dll_note(ptr_dll: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
 
-    let root_path = match copy_from_cstr(dir_name).and_then(|dir_name| dll_finder::dir_name_to_dir(&default_root_path, &dir_name)) {
-        Ok(root_path) => PathBuf::from(root_path),
-        Err(e) => {
-            unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(format!("Failed to convert dir_name into dir: {:?}", e))).into_raw_pointer()
-        }
-    };
-
-    let dll_name = match copy_from_cstr(dll_name) {
-        Ok(dll_name) => dll_name,
-        Err(e) => {
-            unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(format!("Failed to parse dll name: {:?}", e))).into_raw_pointer()
-        }
-    };
-
-    let mut full_dll_path = root_path;
-    full_dll_path.push(dll_name);
-
-    if !full_dll_path.exists() {
-        unsafe { *ptr_result = false };
-        return Data::from(CSTRING::from(format!("Specified dll_path does not exist: {}", full_dll_path.display()))).into_raw_pointer()
-    }
-
-    let full_path_str = full_dll_path.into_iter().filter_map(|elem| elem.to_str().map(|s| s.to_string()))
-    .collect::<Vec<String>>()
-    .join("\\");
-
-    let dll = match DLL::load(&full_path_str) {
+    let lt = ();
+    let dll = match DynamicLibrary::from_raw_ptr(ptr_dll, &lt) {
         Ok(dll) => dll,
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(e)).into_raw_pointer()
+            return Data::from(CSTRING::from(format!("Failed to convert raw_ptr to dll: {:?}", e))).into_raw_pointer()
         }
     };
 
-    match dll.get_ptr_args_info() {
-        Ok(ptr_args_info) => {
+    match dll.as_ref().get_ptr_note().map(|ptr_func_note| unsafe { ptr_func_note() }) {
+        Ok(note) => {
             unsafe { *ptr_result = true };
-            return unsafe { ptr_args_info() }
+            return  note
         }
         Err(e) => {
-            unsafe {*ptr_result = false };
-            return Data::from(CSTRING::from(e)).into_raw_pointer()
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to get note: {:?}", e))).into_raw_pointer()
         }
     }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_dll_ptr(default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
-    let default_root_path = match copy_from_cstr(default_root) {
-        Ok(default_root_path) => PathBuf::from(default_root_path),
+pub extern "C" fn get_dll_args_info(ptr_dll: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+
+    let lt = ();
+    let dll = match DynamicLibrary::from_raw_ptr(ptr_dll, &lt) {
+        Ok(dll) => dll,
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(format!("Faield to parse passed root: {:?}", e))).into_raw_pointer()
+            return Data::from(CSTRING::from(format!("Faield to convert raw_ptr to dll: {:?}", e))).into_raw_pointer()
         }
     };
 
-    let root_path = match copy_from_cstr(dir_name).and_then(|dir_name| dll_finder::dir_name_to_dir(&default_root_path, &dir_name)) {
-        Ok(root_path) => std::path::PathBuf::from(root_path),
-        Err(e) => {
-            unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(format!("Failed to convert dir_name into dir: {:?}", e))).into_raw_pointer()
-        }
-    };
-
-    let dll_name = match copy_from_cstr(dll_name) {
-        Ok(dll_name) => dll_name,
-        Err(e) => {
-            unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(format!("Failed to parse dll name: {:?}", e))).into_raw_pointer()
-        }
-    };
-
-    let mut full_dll_path = root_path;
-    full_dll_path.push(dll_name);
-
-    if !full_dll_path.exists() {
-        unsafe { *ptr_result = false };
-        return Data::from(CSTRING::from(format!("Specified dll_path does not exist: {}", full_dll_path.display()))).into_raw_pointer()
-    }
-
-    let full_path_str = full_dll_path.into_iter().filter_map(|elem| elem.to_str().map(|s| s.to_string()))
-    .collect::<Vec<String>>()
-    .join("\\");
-
-    match DLL::load_and_wrap(&full_path_str) {
-        Ok(dll) => {
+    match dll.as_ref().get_ptr_args_info().map(|ptr_func_arg_info| unsafe { ptr_func_arg_info() }) {
+        Ok(arg_info) => {
             unsafe { *ptr_result = true };
-            return dll
-        },
+            return arg_info
+        }
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(e)).into_raw_pointer()
+            return Data::from(CSTRING::from(format!("Failed to get arg_info: {:?}", e))).into_raw_pointer()
         }
     }
 }
-
 /// When the dll function call failed, this caller first frees the return value from the dll, and return another error message allocated by itself.
 #[unsafe(no_mangle)]
 pub extern "C" fn call_dll_func(ptr_dll: *mut Pointer, ptr_args: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
 
-    match DLL::get_ptr_call_func(ptr_dll){
-        Ok(func) => {
-            unsafe { 
-                let return_val = func(ptr_args, ptr_result);
-                if !*ptr_result {
+    let lt = ();
+    let dll = match DynamicLibrary::from_raw_ptr(ptr_dll, &lt) {
+        Ok(dll) => dll,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to convert raw_ptr into dll: {:?}", e))).into_raw_pointer()
+        }
+    };
 
-                    let err_msg = &*(return_val as *mut Data);
-                    let mut err_msg = if let Value::CSTRING(err_msg) = err_msg.get_value() {
+    match dll.as_ref().get_ptr_call_func().map(|ptr_func| unsafe { ptr_func(ptr_args, ptr_result) }) {
+        Ok(output) => {
+            if unsafe { *ptr_result } {
+                return output
+            } else {
 
-                        match err_msg.get_string() {
-                            Ok(dll_err_msg) => dll_err_msg,
-                            Err(e) => e,
-                        }
-                    } else {
-                        format!("Function call failed, without any available error message.")
-                    };
-
-                    match DLL::get_ptr_dealloc(ptr_dll) {
-                        Ok(dealloc) => {
-                            dealloc(return_val);
-                            err_msg.push_str(". Error value freed");
+                let d = unsafe { &*(ptr_result as *mut Data as *const Data) };
+                let err_msg = if let Value::CSTRING(err_msg) = d.get_value() {
+                    match err_msg.get_string() {
+                        Ok(err_msg) => {
+                            err_msg
                         }
                         Err(e) => {
-                            err_msg.push_str(". Failed to free Error value");
+                            unsafe { *ptr_result = false };
+                            format!("Failed to parse err_msg from the function: {:?}", e)
                         }
                     }
-
-                    Data::from(CSTRING::from(err_msg)).into_raw_pointer()
-
                 } else {
-                    return_val
-                }
+                    format!("The function returned an Error in a form other than String")
+                };
+
+                dll.as_ref().get_ptr_simple_dealloc().iter().for_each(|ptr_simple_dealloc| unsafe {
+                    ptr_simple_dealloc(output);
+                });
+
+                unsafe { *ptr_result = false };
+                Data::from(CSTRING::from(err_msg)).into_raw_pointer()
             }
         }
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(e)).into_raw_pointer()
+            return Data::from(CSTRING::from(format!("Failed to call function: {:?}", e))).into_raw_pointer()
         }
     }
 }
@@ -689,23 +615,60 @@ pub extern "C" fn call_dll_func(ptr_dll: *mut Pointer, ptr_args: *mut Pointer, p
 #[unsafe(no_mangle)]
 pub extern "C" fn free_dll_result(ptr_dll: *mut Pointer, ptr_dll_result: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
 
-    match DLL::get_ptr_dealloc(ptr_dll) {
-        Ok(func) => {
-            unsafe { 
-                *ptr_result = true;
-                Data::from(func(ptr_dll_result)).into_raw_pointer()
-            }
+    let lt = ();
+    let dll = match DynamicLibrary::from_raw_ptr(ptr_dll, &lt) {
+        Ok(dll) => dll,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to convert raw_ptr into dll: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    match dll.as_ref().get_ptr_dealloc() {
+        Ok(func_dealloc) => {
+            unsafe { func_dealloc(ptr_dll_result)};
+
+            unsafe { *ptr_result = true };
+            return null::<Pointer>() as *mut Pointer
+
         }
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(e)).into_raw_pointer()
+            return Data::from(CSTRING::from(format!("Failed to get ptr_dealloc: {:?}", e))).into_raw_pointer()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn free_simple_dll_result(ptr_dll: *mut Pointer, ptr_dll_result: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+
+    let lt = ();
+    let dll = match DynamicLibrary::from_raw_ptr(ptr_dll, &lt) {
+        Ok(dll) => dll,
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(format!("Failed to convert raw_ptr into dll: {:?}", e))).into_raw_pointer()
+        }
+    };
+
+    match dll.as_ref().get_ptr_simple_dealloc() {
+        Ok(func_simple_dealloc) => {
+            unsafe { func_simple_dealloc(ptr_dll_result )};
+
+            unsafe { *ptr_result = true };
+            return null::<Ponter>() as *mut Pointer
+        }
+        Err(e) => {
+            unsafe { *ptr_result = false };
+            return Data::from(CSTRING::from(fromat!("Failed to get ptr_simple_dealloc: {:?}", e))).into_raw_pointer()
         }
     }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn drop_dll(ptr_dll: *mut Pointer) -> bool {
-    DLL::drop(ptr_dll)
+    DynamicLibrary::free(ptr_dll);
+    true
 }
 
 #[unsafe(no_mangle)]
@@ -720,7 +683,7 @@ pub extern "C" fn drop_resources(ptr_resources: *mut Pointer) -> bool {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn set_resource(ptr_resources: *mut Pointer, item_key: *mut Pointer, default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_args: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
+pub extern "C" fn set_resource(ptr_resources: *mut Pointer, ptr_lib_collection: *mut Pointer, item_key: *mut Pointer, default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_args: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
 
     let item_key = match copy_from_cstr(item_key) {
         Ok(item_key) => item_key,
@@ -763,7 +726,7 @@ pub extern "C" fn set_resource(ptr_resources: *mut Pointer, item_key: *mut Point
         }
     };
 
-    match resources.write().map_err(|e| format!("Resources Write Lock Error: {:?}", e)).and_then(| mut r|r.set_item( item_key, &default_root, &dir_name, &dll_name, ptr_args)) {
+    match resources.write().map_err(|e| format!("Resources Write Lock Error: {:?}", e)).and_then(| mut r|r.set_item(ptr_lib_collection, item_key, &default_root, &dir_name, &dll_name, ptr_args)) {
         Ok(_) => { 
             unsafe { *ptr_result = true };
             return null::<Pointer>() as *mut Pointer

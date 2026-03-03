@@ -3,3 +3,4 @@
 #[cfg(feature="dll_interface")] pub use dll_interface;
 #[cfg(feature="dll_loader")] pub use dll_loader;
 #[cfg(feature="global_resource")] pub use global_resource;
+#[cfg(feature="dynamic_library")] pub use dynamic_library;

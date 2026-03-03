@@ -1,4 +1,4 @@
-use core::datatype::{TypeCode, Data, Value, string::CSTRING, RawArrayIter};
+use core::datatype::{TypeCode, Data, Value, RawArrayIter};
 use core::Pointer;
 use std::marker::PhantomData;
 
@@ -6,6 +6,7 @@ pub const INTERFACE_NAME_NOTE: &'static str = "note";
 pub const INTERFACE_NAME_ARGS_INFO: &'static str = "args_info";
 pub const INTERFACE_NAME_CALL_FUNC: &'static str = "call_func";
 pub const INTERFACE_NAME_DEALLOC: &'static str = "dealloc";
+pub const INTERFACE_NAME_SIMPLE_DEALLOC: &'static str = "simple_dealloc";
 
 #[derive(Debug)]
 pub struct Args<'a>{
@@ -31,8 +32,17 @@ pub trait VbaInterface {
 
     fn call_func(ptr_args: *mut Pointer, ptr_err: *mut bool) -> *mut Pointer;
 
+
+    /// If call_func returns a complicated data converted into *mut Pointer with an assumption that reader will handle the conversion work,
+    /// it should reflect it
     fn dealloc(ptr_data: *mut Pointer) -> bool {
         Data::drop(ptr_data);
+        true
+    }
+
+    /// Is is supposed to drop data returned from note, arg_info
+    fn simple_dealloc(ptr_simple_data: *mut Pointer) -> bool {
+        Data::drop(ptr_simple_data);
         true
     }
 }
@@ -86,6 +96,11 @@ macro_rules! convert_into_dll_funcs {
         #[unsafe(no_mangle)]
         pub extern "C" fn dealloc(ptr_data: *mut Pointer) -> bool {
             <$type>::dealloc(ptr_data)
+        }
+
+        #[unsafe(no_mangle)]
+        pub extern "C" fn simple_dealloc(ptr_simple_data: *mut Pointer) -> bool {
+            <$type>::simple_dealloc(ptr_simple_data)
         }
     }
 }

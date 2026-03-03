@@ -142,6 +142,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dynamic_library"
+version = "0.1.0"
+dependencies = [
+ "core",
+ "dll_finder",
+ "dll_loader",
+]
+
+[[package]]
 name = "example_cartesian_product"
 version = "0.1.0"
 dependencies = [
@@ -188,6 +197,7 @@ dependencies = [
  "core",
  "dll_finder",
  "dll_loader",
+ "dynamic_library",
  "global_resource",
 ]
 
@@ -198,6 +208,7 @@ dependencies = [
  "core",
  "dll_finder",
  "dll_loader",
+ "dynamic_library",
 ]
 
 [[package]]
@@ -287,12 +298,13 @@ dependencies = [
 
 [[package]]
 name = "rusty_vba"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "core",
  "dll_finder",
  "dll_interface",
  "dll_loader",
+ "dynamic_library",
  "global_resource",
 ]
 

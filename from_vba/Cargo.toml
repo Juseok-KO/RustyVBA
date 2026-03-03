@@ -11,3 +11,4 @@ core.workspace = true
 dll_loader.workspace = true
 dll_finder.workspace = true
 global_resource.workspace = true
+dynamic_library.workspace = true

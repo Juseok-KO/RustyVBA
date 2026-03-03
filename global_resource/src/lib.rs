@@ -3,31 +3,29 @@ use core::datatype::{Data, Value};
 use std::ptr::null;
 use dll_loader::DLL;
 use std::sync::RwLock;
+use dynamic_library::{DynamicLibrary, LibCollection};
 
 #[repr(C)]
 pub struct Resource {
-    dll: *mut Pointer,
+    dll: DynamicLibrary,
     data: *mut Pointer,
 }
 
 impl Drop for Resource {
     fn drop(&mut self) {
 
-
-        let dealloc = match unsafe { DLL::get_ptr_dealloc(self.dll) }  {
-            Ok(dealloc) => dealloc,
+        let func_dealloc = match self.dll.as_ref().get_ptr_dealloc()  {
+            Ok(func_dealloc) => func_dealloc,
             Err(e) => {
-                return 
+                #[cfg(debug_assertions)] {
+                    println!("Resource::drop() failed: {:?}, e");
+                    return
+                }
             }
         };
 
-        unsafe { dealloc(self.data) };
-
+        unsafe { func_dealloc(self.data) };
         self.data = null::<Pointer>() as *mut Pointer;
-        let dll = unsafe { Box::from_raw(self.dll as *mut DLL) };
-        self.dll = null::<Pointer>() as *mut Pointer;
-        drop(dll);
-
     }
 }
 
@@ -79,60 +77,104 @@ impl Resources {
         .map(|r| r.data)
     }
 
-    pub fn set_item(&mut self, item_key: String, default_root: &str, dir_name: &str, dll_name: &str, ptr_args: *mut Pointer) -> Result<(), String> {
+    pub fn set_item(&mut self, dylib_collections: *mut Pointer, item_key: String, default_root: &str, dir_name: &str, dll_name: &str, ptr_args: *mut Pointer) -> Result<(), String> {
 
-        let default_root = std::path::Path::new(default_root);
-        let mut dll_path = std::path::PathBuf::from(dll_finder::dir_name_to_dir(default_root, dir_name)?);
-        dll_path.push(dll_name);
-
-        if !dll_path.exists() {
-            return Err(format!("Specified dll_path does not exists: {}", dll_path.display()))
-        }
-
-        let dll_path = dll_path.into_iter().filter_map(|elem| elem.to_str().map(|s| s.to_string()))
-        .collect::<Vec<String>>()
-        .join("\\");
-
-        let dll = dll_loader::DLL::load_and_wrap(&dll_path)?;
-        let func = DLL::get_ptr_call_func(dll)?;
+        let lt = ();
+        let lib_collection = LibCollection::from_raw_ptr(dylib_collections, &lt)?;
 
         let mut result = true;
 
-        let return_val = unsafe { func(ptr_args, &mut result as *mut bool) };
+        match lib_collection.read().map_err(|e| format!("Failed to read-lock the dylib collection"))?
+        .get_lib(dir_name.to_string(), dll_name.to_string()) {
+            Some(dll) => {
+                let item_val = dll.as_ref().get_ptr_call_func().map(|ptr_func| unsafe { ptr_func(ptr_args, &mut result as *mut bool)})?;
+                    
+                if result {
 
-        if result {
+                    self.inner.insert(item_key, Resource { dll: dll, data: item_val});
+                    return Ok(())
 
-            self.inner.insert(item_key, Resource { dll, data: return_val} );
-            Ok(())
+                } else {
+                    let d = unsafe { &*(item_val as *mut Data)};
+                    let mut err_msg = if let Value::CSTRING(err_msg) = d.get_value() {
+                        match err_msg.get_string() {
+                            Ok(err_msg) => err_msg,
+                            Err(e) => {
+                                e
+                            }
+                        }
+                    } else {
+                        format!("Failed to parse error from the function")
+                    };
 
-        } else {
+                    match dll.as_ref().get_ptr_simple_dealloc().map(|ptr_simple_dealloc|  unsafe {
+                        ptr_simple_dealloc(item_val);
+                     }) {
+                        Ok(_) => {},
+                        Err(e) => {
+                            err_msg.push(' ');
+                            err_msg.push_str(&e);
+                        }
+                    }
 
-            let data = unsafe { &*(return_val as *mut Data )};
-            let Value::CSTRING(err_msg) = data.get_value() else {
+                    return Err(err_msg)
+                }
+            }
+            None => {
 
-                DLL::drop(dll);
-                return Err(format!("Failed to set item: funciton call failed, messege reading failed"))
-            };
-
-            let Ok(dealloc) = DLL::get_ptr_dealloc(dll) else {
-
-                DLL::drop(dll);
-                return Err(format!("Failed to set item: function call failed, failed to free memory allocated by the dll"))
-            };
-
-            let Ok(err_msg) = err_msg.get_string() else {
-                
-                DLL::drop(dll);
-                return Err(format!("Failed to set item: function call failed, message recovery failed"))
-            };
-
-            unsafe { dealloc(return_val); }
-            DLL::drop(dll);
-
-            return Err(format!("Faield to set item: {}", err_msg))
-
+            }
         }
-        
+
+        match lib_collection.write().map_err(|e| format!("Failed to write-lock the dylib collection"))?
+        .load_lib(default_root.to_string(), dir_name.to_string(), dll_name.to_string()) {
+            Ok(_) => {
+
+            }
+            Err(e) => {
+                return Err(format!("Failed to set item: {}", e))
+            }
+        }
+
+        match lib_collection.read().map_err(|e| format!("Failed to read-lock the dylib collection after loading lib"))?
+        .get_lib(dir_name.to_string(), dll_name.to_string()) {
+            Some(dll) => {
+                let item_val = dll.as_ref().get_ptr_call_func().map(|ptr_func| unsafe {ptr_func(ptr_args, &mut result as *mut bool)})?;
+
+                if result {
+                    self.inner.insert(item_key, Resource { dll, data: item_val});
+                    return Ok(())
+                
+                } else {
+                    let d = unsafe { &*(item_val as *mut Data)};
+                    let mut err_msg = if let Value::CSTRING(err_msg) = d.get_value() {
+                        match err_msg.get_string() {
+                            Ok(err_msg) => err_msg,
+                            Err(e) => {
+                                e
+                            }
+                        }
+                    } else {
+                        format!("Failed to parse error from the function")
+                    };
+
+                    match dll.as_ref().get_ptr_simple_dealloc().map(|ptr_simple_dealloc| unsafe {
+                        ptr_simple_dealloc(item_val);
+                    }) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            err_msg.push(' ');
+                            err_msg.push_str(&e);
+                        }
+                    }
+
+                    err_msg.push_str(". Failure after loading the dll.");
+                    return Err(err_msg)
+                }
+            }
+            None => {
+                return Err(format!("Failed to get the dll after loading"))
+            }
+        }        
     }
 
     pub fn del_item(&mut self, key: &str) -> Result<(), String> {

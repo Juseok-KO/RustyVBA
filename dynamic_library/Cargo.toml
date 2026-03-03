@@ -1,5 +1,5 @@
 [package]
-name = "global_resource"
+name = "dynamic_library"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,4 +7,3 @@ edition = "2024"
 core.workspace = true
 dll_loader.workspace = true
 dll_finder.workspace = true
-dynamic_library.workspace = true

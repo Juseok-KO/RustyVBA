@@ -1,6 +1,6 @@
 [package]
 name = "rusty_vba"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 
 [lib]
@@ -9,7 +9,7 @@ crate-type = ["lib"]
 [workspace]
 members = [
     "core", "dll_finder", "dll_interface", 
-    "dll_loader", "example_cartesian_product", "example_dll", "from_vba", "global_resource", "vba_script_generator",
+    "dll_loader", "dynamic_library", "example_cartesian_product", "example_dll", "from_vba", "global_resource", "vba_script_generator",
 ]
 
 [workspace.dependencies]
@@ -18,6 +18,7 @@ dll_finder = { path = "./dll_finder" }
 dll_interface = { path = "./dll_interface" }
 dll_loader = { path = "./dll_loader" }
 global_resource = { path = "./global_resource" }
+dynamic_library = { path = "./dynamic_library" }
 rusqlite = { version = "0.37", features = ["bundled"]}
 
 
@@ -32,3 +33,5 @@ dll_loader.workspace = true
 dll_loader.optional = true
 global_resource.workspace = true
 global_resource.optional = true
+dynamic_library.workspace = true
+dynamic_library.optional = true

@@ -3,7 +3,7 @@ use windows::Win32::Foundation::{FreeLibrary, HMODULE};
 use windows::core::{PCWSTR, PCSTR};
 
 use core::Pointer;
-use dll_interface::{INTERFACE_NAME_ARGS_INFO, INTERFACE_NAME_NOTE, INTERFACE_NAME_CALL_FUNC, INTERFACE_NAME_DEALLOC};
+use dll_interface::{INTERFACE_NAME_ARGS_INFO, INTERFACE_NAME_CALL_FUNC, INTERFACE_NAME_DEALLOC, INTERFACE_NAME_NOTE, INTERFACE_NAME_SIMPLE_DEALLOC};
 
 use std::path::PathBuf;
 
@@ -47,19 +47,6 @@ impl DLL {
         .map(|hmodule| DLL(hmodule))
     }
 
-    pub fn load_and_wrap(path: &str) -> Result<*mut Pointer, String> {
-
-        Ok(Box::leak(Box::new(Self::load(path)?)) as *mut DLL as *mut Pointer)
-    }
-
-    ///ptr_dll shuold be the one created by DLL::load_and_wrap()
-    pub fn drop(ptr_dll: *mut Pointer) -> bool {
-
-        let dll = unsafe { Box::from_raw(ptr_dll as *mut DLL) };
-        drop(dll);
-        true
-    }
-
     fn get_ptr_func(&self, func_name: &str) -> Result<*const Pointer, String> {
 
         let mut utf8_func_name = func_name.bytes().collect::<Vec<u8>>();
@@ -91,22 +78,27 @@ impl DLL {
         })
     }
 
-    pub fn get_ptr_call_func(ptr_dll: *mut Pointer) -> Result<unsafe extern "C" fn (*mut Pointer, *mut bool) -> *mut Pointer, String> {
-        let dll = unsafe { &*(ptr_dll as *mut DLL as *const DLL)};
-        dll.get_ptr_func(INTERFACE_NAME_CALL_FUNC)
+    pub fn get_ptr_call_func(&self) -> Result<unsafe extern "C" fn (*mut Pointer, *mut bool) -> *mut Pointer, String> {
+        self.get_ptr_func(INTERFACE_NAME_CALL_FUNC)
         .map(|ptr| {
             let ptr: unsafe extern "C" fn (*mut Pointer, *mut bool) -> *mut Pointer = unsafe { std::mem::transmute(ptr)};
             ptr
         })
     }
 
-    pub fn get_ptr_dealloc(ptr_dll: *mut Pointer) -> Result<unsafe extern "C" fn (*mut Pointer) -> bool, String> {
-        let dll = unsafe { &*(ptr_dll as *mut DLL as *const DLL)};
-        dll.get_ptr_func(INTERFACE_NAME_DEALLOC)
+    pub fn get_ptr_dealloc(&self) -> Result<unsafe extern "C" fn (*mut Pointer) -> bool, String> {
+        self.get_ptr_func(INTERFACE_NAME_DEALLOC)
         .map(|ptr| {
             let ptr: unsafe extern "C" fn (*mut Pointer) -> bool = unsafe { std::mem::transmute(ptr)};
             ptr
         })
     }
 
+    pub fn get_ptr_simple_dealloc(&self) -> Result<unsafe extern "C" fn (*mut Pointer) -> bool, String> {
+        self.get_ptr_func(INTERFACE_NAME_SIMPLE_DEALLOC)
+        .map(|ptr| {
+            let ptr: unsafe extern "C" fn (*mut Pointer) -> bool = unsafe { std::mem::transmute(ptr)};
+            ptr
+        })
+    }
 }

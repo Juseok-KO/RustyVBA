@@ -14,6 +14,7 @@ Const RUST_TRUE As Byte = 1
 Const RUST_FALSE As Byte = 0
 
 Public PTR_RESOURCES As LongPtr
+Public PTR_DYLIB_COLLECTION As LongPtr
 
 Const DLL_DIR_ROOT As String = "{DLL_ROOT}"
 
@@ -165,24 +166,28 @@ Private Declare PtrSafe Function list_dll_under_dir Lib "{INTERFACE}" ( _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
-Private Declare PtrSafe Function get_dll_note Lib "{INTERFACE}" ( _
+Private Declare PtrSafe Function init_dylib_collection "{INTERFACE}" ( _
+) As LongPtr
+
+Private Declare PtrSafe Function drop_dylib_collection "{INTERFACE}" ( _
+    ByVal ptr_collection As LongPtr
+) As Byte
+
+Private Declare PtrSafe Function get_or_load_lib "{INTERFACE}" ( _
+    ByVal ptr_collection As LongPtr, _
     ByVal ptr_default_root As LongPtr, _
     ByVal ptr_dir_name As LongPtr, _
     ByVal ptr_dll_name As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function get_dll_note Lib "{INTERFACE}" ( _
+    ByVal ptr_dll As LongPtr, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
 Private Declare PtrSafe Function get_dll_args_info Lib "{INTERFACE}" ( _
-    ByVal ptr_default_root As LongPtr, _
-    ByVal ptr_dir_name As LongPtr, _
-    ByVal ptr_dll_name As LongPtr, _
-    ByVal ptr_result As LongPtr _
-) As LongPtr
-
-Private Declare PtrSafe Function get_dll_ptr Lib "{INTERFACE}" ( _
-    ByVal ptr_root As LongPtr, _
-    ByVal ptr_dir_name As LongPtr, _
-    ByVal ptr_dll_name As LongPtr, _
+    ByVal ptr_dll As LongPtr, _
     ByVal ptr_result As LongPtr _
 ) As LongPtr
 
@@ -193,6 +198,12 @@ Private Declare PtrSafe Function call_dll_func Lib "{INTERFACE}" ( _
 ) As LongPtr
 
 Private Declare PtrSafe Function free_dll_result Lib "{INTERFACE}" ( _
+    ByVal ptr_dll As LongPtr, _
+    ByVal ptr_dll_result As LongPtr, _
+    ByVal ptr_result As LongPtr _
+) As LongPtr
+
+Private Declare PtrSafe Function free_simple_dll_result Lib "{INTERFACE}" ( _
     ByVal ptr_dll As LongPtr, _
     ByVal ptr_dll_result As LongPtr, _
     ByVal ptr_result As LongPtr _
@@ -210,6 +221,7 @@ Private Declare PtrSafe Function drop_resources Lib "{INTERFACE}" ( _
 
 Private Declare PtrSafe Function set_resource Lib "{INTERFACE}" ( _
     ByVal ptr_resources As LongPtr, _
+    ByVal ptr_lib_collection As LongPtr, _
     ByVal ptr_item_key As LongPtr, _
     ByVal ptr_default_root As LongPtr, _
     ByVal ptr_dir_name As LongPtr, _
@@ -569,6 +581,17 @@ Function RustyFuncListUnderFolder(folder_name As String) As Variant
 
 End Function
 
+Function RustyInitLibCollection() As Byte
+
+    PTR_DYLIB_COLLECTION = init_dylib_collection()
+    RustyInitLibCollection = RUST_TRUE
+End Function
+
+Function RustyDropLibCollection() As Byte
+
+    RustyDropLibCollection = drop_dylib_collection(PTR_DYLIB_COLLECTION)
+
+End Function
 
 Function RustyFuncNote(folder_name As String, func_name As String) As Variant
     Dim ptr_dll_root As LongPtr
@@ -577,6 +600,7 @@ Function RustyFuncNote(folder_name As String, func_name As String) As Variant
     Dim result As Byte
     Dim ptr_result As LongPtr
     Dim ptr_note As LongPtr
+    Dim ptr_dll As LongPtr
 
     ptr_dll_root = StrPtr(DLL_DIR_ROOT)
     ptr_folder_name = StrPtr(folder_name)
@@ -584,9 +608,33 @@ Function RustyFuncNote(folder_name As String, func_name As String) As Variant
     result = RUST_TRUE
     ptr_result = VarPtr(result)
 
-    ptr_note = get_dll_note(ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_result)
-    RustyFuncNote = ReadPtrData(ptr_note)
-    drop_data(ptr_note)
+    ptr_dll = get_or_load_lib(PTR_DYLIB_COLLECTION, ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_result)
+
+    If ptr_result = RUST_TRUE Then
+
+        ptr_note = get_dll_note(ptr_dll, ptr_result)
+
+        If ptr_result = RUST_TRUE Then
+
+            RustyFuncNote = ReadPtrData(ptr_note)
+            ptr_note = free_simple_dll_result(ptr_dll, ptr_note, ptr_result)
+
+            If ptr_result = RUST_FALSE Then
+                RustyFuncNote = ReadPtrData(ptr_note)
+                drop_data(ptr_note)
+            End If
+
+        Else 
+            RustyFuncNote = ReadPtrData(ptr_note)
+            drop_data(ptr_note)
+        End If
+
+        result = drop_dll(ptr_dll)
+
+    Else 
+        RustyFuncNote = ReadPtrData(ptr_dll)
+        drop_data(ptr_dll)
+    End If
     
 End Function
 
@@ -597,12 +645,41 @@ Function RustyFuncArgs(folder_name As String, func_name As String) As Variant
     Dim result As Byte
     Dim ptr_result As LongPtr
     Dim ptr_info As LongPtr
+    Dim ptr_dll As LongPtr
 
     ptr_dll_root = StrPtr(DLL_DIR_ROOT)
     ptr_folder_name = StrPtr(folder_name)
     ptr_dll_name = StrPtr(func_name)
     result = RUST_TRUE
     ptr_result = VarPtr(result)
+
+    ptr_dll = get_or_load_lib(PTR_DYLIB_COLLECTION, ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_result)
+
+    If ptr_result = RUST_TRUE Then
+
+        ptr_info = get_dll_args_info(ptr_dll, ptr_result)
+
+        If ptr_result = RUST_TRUE Then
+
+            RustyFuncArgs = ReadPtrData(ptr_info)
+            ptr_info = free_simple_dll_result(ptr_dll, ptr_info, ptr_result)
+
+            If ptr_result = RUST_FALSE terminated
+                RustyFuncArgs = ReadPtrData(ptr_info)
+                drop_data(ptr_info)
+            End If
+
+        Else
+            RustyFuncArgs = ReadPtrData(ptr_info)
+            drop_data(ptr_info)
+        End If
+
+        result = drop_dll(ptr_dll)
+
+    Else
+        RustyFuncArgs = ReadPtrData(ptr_dll)
+        drop_data(ptr_dll)
+    End If
 
     ptr_info = get_dll_args_info(ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_result)
     RustyFuncArgs = ReadPtrData(ptr_info)
@@ -647,7 +724,7 @@ Function RustyFuncCall(folder_name As String, func_name As String, ParamArray ar
         ptr_folder_name = StrPtr(folder_name)
         ptr_dll_name = StrPtr(func_name)
 
-        ptr_dll = get_dll_ptr(ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_result)
+        ptr_dll = get_or_load_lib(PTR_DYLIB_COLLECTION, ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_result)
 
         If result = RUST_TRUE Then
 
@@ -659,10 +736,10 @@ Function RustyFuncCall(folder_name As String, func_name As String, ParamArray ar
                 ptr_return = free_dll_result(ptr_dll, ptr_return, ptr_result)
 
                 If result = RUST_FALSE Then
-                    RustyFuncCall = ReadPtrData(ptr_return)
-                End If
 
-                drop_result = drop_data(ptr_return)
+                    RustyFuncCall = ReadPtrData(ptr_return)
+                    drop_result = drop_data(ptr_return)
+                End If
 
             Else
 
@@ -732,7 +809,7 @@ Function RustySetResource(item_key As String, folder_name As String, func_name A
         ptr_folder_name = StrPtr(folder_name)
         ptr_dll_name = StrPtr(func_name)
 
-        set_result = set_resource(PTR_RESOURCES, ptr_item_key, ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_rust_args, ptr_result)
+        set_result = set_resource(PTR_RESOURCES, PTR_DYLIB_COLLECTION, ptr_item_key, ptr_dll_root, ptr_folder_name, ptr_dll_name, ptr_rust_args, ptr_result)
 
         If result = RUST_TRUE Then
             RustySetResource = RUST_TRUE
