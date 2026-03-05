@@ -19,8 +19,8 @@ impl Drop for Resource {
             Err(e) => {
                 #[cfg(debug_assertions)] {
                     println!("Resource::drop() failed: {:?}", e);
-                    return
                 }
+                return
             }
         };
 
