@@ -18,7 +18,7 @@ impl Drop for Resource {
             Ok(func_dealloc) => func_dealloc,
             Err(e) => {
                 #[cfg(debug_assertions)] {
-                    println!("Resource::drop() failed: {:?}, e");
+                    println!("Resource::drop() failed: {:?}", e);
                     return
                 }
             }

@@ -57,7 +57,7 @@ pub struct LibCollection {
 /// Sucess valuees are returned from the loaded dll. The error values are returned from dispatcher.
 impl LibCollection {
 
-    pub fn new() -> *mut pointer {
+    pub fn new() -> *mut Pointer {
 
         Box::leak(Box::new(RwLock::new(LibCollection{ internal: std::collections::HashMap::new() }))) as *mut RwLock<LibCollection> 
         as *mut Pointer
@@ -88,9 +88,9 @@ impl LibCollection {
 
     pub fn load_lib(&mut self, default_folder_path: String, folder_name: String, lib_name: String) -> Result<(), String> {
 
-        let default_folder_path = std::path::Path::from(default_folder_path.as_str());
+        let default_folder_path = std::path::Path::new(&default_folder_path);
         let mut dll_full_path = std::path::PathBuf::from(dir_name_to_dir(&default_folder_path, &folder_name)?);
-        dll_full_path.push(lib_name);
+        dll_full_path.push(&lib_name);
 
         if !dll_full_path.exists() {
             return Err(format!("Does not exist: {}", dll_full_path.display()))
@@ -125,8 +125,12 @@ impl LibCollection {
 
     pub fn free_idle_libs(&mut self) {
 
-        let targets = self.get_counters().into_iter().filter(|((dir_name, dll_name), counter)| {
-            counter.load(Ordering::SeqCst) < 1
+        let targets = self.get_counters().into_iter().filter_map(|((dir_name, dll_name), counter)| {
+            if counter.load(Ordering::SeqCst) < 1 {
+                Some((dir_name, dll_name))
+            } else {
+                None
+            }
         }).collect::<Vec<(String, String)>>();
 
         for t in targets {
@@ -136,10 +140,12 @@ impl LibCollection {
 }
 
 pub fn scan(ptr_lib_collection: *mut Pointer) {
+    let addr = ptr_lib_collection as usize;
 
     spawn(move || {
         loop {
             let lt = ();
+            let ptr_lib_collection = addr as *mut Pointer;
             if let Ok(lib_collection) = LibCollection::from_raw_ptr(ptr_lib_collection, &lt) {
                 if let Ok(mut write_lock) = lib_collection.write() {
                     write_lock.free_idle_libs();
@@ -148,5 +154,4 @@ pub fn scan(ptr_lib_collection: *mut Pointer) {
             sleep(Duration::from_mins(5));
         }
     });
-    
 }

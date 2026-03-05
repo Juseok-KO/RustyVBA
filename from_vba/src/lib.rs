@@ -426,7 +426,7 @@ pub extern "C" fn drop_dylib_collection(ptr_collection: *mut Pointer) -> bool {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn get_or_load_lib(ptr_collection: *mut Pointer, deafult_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Poiner, ptr_result: *mut bool) -> *mut Pointer {
+pub extern "C" fn get_or_load_lib(ptr_collection: *mut Pointer, default_root: *mut Pointer, dir_name: *mut Pointer, dll_name: *mut Pointer, ptr_result: *mut bool) -> *mut Pointer {
 
     let lt = ();
     let lib_collection = match LibCollection::from_raw_ptr(ptr_collection, &lt) {
@@ -479,7 +479,7 @@ pub extern "C" fn get_or_load_lib(ptr_collection: *mut Pointer, deafult_root: *m
         }
     }
 
-    match lib_collection.write().map(|write_lock| {
+    match lib_collection.write().map(|mut write_lock| {
         write_lock.load_lib(default_root, dir_name.clone(), dll_name.clone())
     }) 
     {
@@ -656,11 +656,11 @@ pub extern "C" fn free_simple_dll_result(ptr_dll: *mut Pointer, ptr_dll_result: 
             unsafe { func_simple_dealloc(ptr_dll_result )};
 
             unsafe { *ptr_result = true };
-            return null::<Ponter>() as *mut Pointer
+            return null::<Pointer>() as *mut Pointer
         }
         Err(e) => {
             unsafe { *ptr_result = false };
-            return Data::from(CSTRING::from(fromat!("Failed to get ptr_simple_dealloc: {:?}", e))).into_raw_pointer()
+            return Data::from(CSTRING::from(format!("Failed to get ptr_simple_dealloc: {:?}", e))).into_raw_pointer()
         }
     }
 }

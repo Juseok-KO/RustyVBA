@@ -7,6 +7,7 @@ use dll_interface::{INTERFACE_NAME_ARGS_INFO, INTERFACE_NAME_CALL_FUNC, INTERFAC
 
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct DLL(HMODULE);
 
 impl Drop for DLL {
