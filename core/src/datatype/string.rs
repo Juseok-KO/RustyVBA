@@ -6,7 +6,7 @@ use crate::datatype::RawArray;
 pub struct PtrVBAStr(*const u16);
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CSTRING(pub(crate) RawArray<u8>);
 
 impl Iterator for PtrVBAStr {

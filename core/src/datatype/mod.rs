@@ -50,11 +50,23 @@ pub struct RawArray<T: Sized> {
 
 impl<T: Sized> From<Vec<T>> for RawArray<T> {
     fn from(value: Vec<T>) -> Self {
-        let length = value.len();
-        let capacity = value.capacity();
-        let ptr = value.leak() as *mut [T] as *mut T;
 
+        let (ptr, length, capacity) = value.into_raw_parts();
         RawArray { ptr, length, capacity }
+    }
+}
+
+impl<T: Clone> Clone for RawArray<T> {
+    fn clone(&self) -> Self {
+        
+        let mut new_vec = Vec::new();
+
+        for i in 0..self.length {
+            new_vec.push(unsafe { (&mut *(self.ptr.offset(i as isize))).clone()});
+        }
+
+        let (ptr, length, capacity) = new_vec.into_raw_parts();
+        RawArray { ptr, length, capacity}
     }
 }
 
@@ -118,7 +130,7 @@ impl<T: Sized> Drop for RawArray<T> {
 }
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Value {
     None,
     I8(i8), 
@@ -133,12 +145,37 @@ pub enum Value {
     
 }
 
+impl ToString for Value {
+    fn to_string(&self) -> String {
+        match self {
+            Value::None => "".to_string(),
+            Value::I8(i) => i.to_string(),
+            Value::I16(i) => i.to_string(),
+            Value::I32(i) => i.to_string(),
+            Value::I64(i) => i.to_string(),
+            Value::F32(f) => f.to_string(),
+            Value::F64(f) => f.to_string(),
+            Value::BOOL(b) => b.to_string(),
+            Value::CSTRING(c) => {
+                match c.get_string() {
+                    Ok(s) => s,
+                    Err(e) => e,
+                }
+            }
+            Value::Array(a) => {
+                format!("RawArray: length: {}, capacity: {}", a.length, a.capacity)
+            }
+        }
+    }
+}
+
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Data {
     t: TypeCode,
     d: Value
 }
+
 
 impl Data {
     pub fn into_raw_pointer(self) -> *mut Pointer {
