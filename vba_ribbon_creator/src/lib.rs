@@ -18,15 +18,19 @@ pub const UI_ACTION_INIT_FUNCS: &'static str = "RibbonInitFuncs";
 pub const UI_ACTION_INIT_RESOURCES: &'static str = "RibbonInitResources";
 pub const UI_ACTION_DROP_RESOURCES: &'static str = "RibbonDropResources";
 
+pub const FILE_CONTENT_TYPE: &'static str = "[Content_Types].xml";
+pub const IMAGE_FILE_EXT: &'static str = "png";
+pub const ADDITIONAL_BODY_CONTENT_TYPE_TEMPLATE: &'static str = "<Default Extension=\"{EXT}\" ContentType=\"image/{EXT}\"/>";
+
 use std::{io::{Read, Write}, path::Path};
 use zip::{ZipWriter, write::SimpleFileOptions};
 
 fn icon_relation_body() -> String {
 
     IMAGE_REL_BODY_TEMPLATE
+    .replacen("{}", IMAGE_ID, 1)
     .replacen("{}", IMAGE_DIR, 1)
     .replacen("{}", IMAGE_FILE, 1)
-    .replacen("{}", IMAGE_ID, 1)
 }
 
 fn custom_ui_body() -> String {
@@ -50,6 +54,37 @@ fn update_rels_body(org: String) -> Result<String, String> {
     bf.push_str(CLOSING_RELS);
 
     Ok(bf)
+}
+
+fn content_type_new_line() -> String {
+    ADDITIONAL_BODY_CONTENT_TYPE_TEMPLATE
+    .replace("{EXT}", IMAGE_FILE_EXT)
+}
+
+fn update_content_type_body(org: String) -> String {
+
+    const MAX_COUNTER: usize  = 2;
+    const FLAG: char = '>';
+
+    let mut counter = 0;
+    
+    let mut new_body = String::new();
+
+    for c in org.chars() {
+
+        new_body.push(c);
+
+        if c == FLAG {
+            counter += 1;
+        }
+
+        if counter == MAX_COUNTER {
+            new_body.push_str(&content_type_new_line());
+            counter += 1;
+        }
+    }
+
+    new_body
 }
 
 pub fn set_custom_ui(base_dir: &Path) -> Result<(), String>{
@@ -101,6 +136,37 @@ pub fn set_custom_ui(base_dir: &Path) -> Result<(), String>{
 
 }
 
+pub fn update_content_type(base_dir: &Path) -> Result<(), String> {
+
+    let mut dir_org_content_type = base_dir.to_path_buf();
+    dir_org_content_type.push(FILE_CONTENT_TYPE);
+
+    let mut org_content_type_file = std::fs::File::open(&dir_org_content_type)
+    .map_err(|e| format!("Failed to open a file at {}: {:?}", dir_org_content_type.display(), e))?;
+
+    let mut org_content_type_body = String::new();
+    org_content_type_file.read_to_string(&mut org_content_type_body)
+    .map_err(|e| format!("Failed to read a file at {}: {:?}", dir_org_content_type.display(), e))?;
+
+    drop(org_content_type_file);
+
+    let updated_content_type_body = update_content_type_body(org_content_type_body);
+
+    let mut dir_tmp_content_type = dir_org_content_type.to_path_buf();
+
+    dir_tmp_content_type.set_extension("tmp");
+
+    let mut tmp_content_type_file = std::fs::File::create(&dir_tmp_content_type)
+    .map_err(|e| format!("Failed to creata a file at {}: {:?}", dir_tmp_content_type.display(), e))?;
+
+    tmp_content_type_file.write_all(updated_content_type_body.as_bytes())
+    .map_err(|e| format!("Failed to write to a file at {}: {:?}", dir_tmp_content_type.display(), e))?;
+
+    std::fs::rename(&dir_tmp_content_type, &dir_org_content_type)
+    .map_err(|e| format!("Failed to move a file from {} to {}: {:?}", dir_tmp_content_type.display(), dir_org_content_type.display(), e))
+
+}
+
 pub fn update_rels(base_dir: &Path) -> Result<(), String> {
 
     let mut dir_org_rels = base_dir.to_path_buf();
@@ -113,6 +179,8 @@ pub fn update_rels(base_dir: &Path) -> Result<(), String> {
     let mut org_rels_body = String::new();
     org_rels_file.read_to_string(&mut org_rels_body)
     .map_err(|e| format!("Failed to read a file at {}: {:?}", dir_org_rels.display(), e))?;
+
+    drop(org_rels_file);
 
     let updated_rels_body = update_rels_body(org_rels_body)?;
 
