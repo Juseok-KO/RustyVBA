@@ -1,0 +1,20 @@
+<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui">
+<ribbon>
+<tabs>
+
+<tab id = "rusty_vba" label = "RustyVBA">
+    <group id = "function_col" label = "Functions">
+        <button id = "init_func_col" label = "InitFuncCol" image = "{IMAGE}" size = "large" onAction = "{}"/>
+
+    </group>
+
+    <group id = "resource_col" label = "Resources">
+        <button id = "init_resources" label = "InitResources" image = "{IMAGE}" onAction = "{}"/>
+        <button id = "drop_resources" label = "DropResources" image = "{IMAGE}" onAction = "{}"/>
+    </group>
+
+</tab>
+
+</tabs>
+</ribbon>
+</customUI>

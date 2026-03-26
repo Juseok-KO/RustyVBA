@@ -3,12 +3,16 @@ use std::path::PathBuf;
 use std::io::Write;
 
 use dll_finder;
+use vba_ribbon_creator::{UI_ACTION_INIT_FUNCS, UI_ACTION_INIT_RESOURCES, UI_ACTION_DROP_RESOURCES};
 
 const TEMPLATE_BODY: &'static str = include_str!("template_rusty_vba.bas");
 const OUTPUT_VBA_SCRIPT_NAME: &'static str = "rusty_vba.bas";
 
 const ID_DLL_ROOT: &'static str = "{DLL_ROOT}";
 const ID_INTERFACE: &'static str = "{INTERFACE}";
+const ID_RIB_INIT_FUNC: &'static str = "{RibbonInitFunc}";
+const ID_RIB_INIT_RESOURCE: &'static str = "{RibbonInitResource}";
+const ID_RIB_DROP_RESOURCE: &'static str = "{RibbonDropResource}";
 
 #[derive(Parser, Debug)]
 #[command(about, long_about = None)]
@@ -69,7 +73,11 @@ fn main() {
 
     let template_body = TEMPLATE_BODY
     .replace(ID_DLL_ROOT, &dll_root)
-    .replace(ID_INTERFACE, &interface);
+    .replace(ID_INTERFACE, &interface)
+    .replace(ID_RIB_INIT_FUNC, UI_ACTION_INIT_FUNCS)
+    .replace(ID_RIB_INIT_RESOURCE, UI_ACTION_INIT_RESOURCES)
+    .replace(ID_RIB_DROP_RESOURCE, UI_ACTION_DROP_RESOURCES)
+    ;
 
     let mut output_file = match std::fs::File::create(path_to_script) {
         Ok(output_file) => output_file,

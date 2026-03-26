@@ -860,3 +860,35 @@ Function RustyDelResource(item_key As String) As Variant
     End If
 
 End Function    
+
+Public Sub {RibbonInitFunc}(Control As IRibbonControl)
+
+    Dim result As Byte
+    result = RustyDropLibCollection()
+    result = RustyInitLibCollection()
+
+    MsgBox "Functions collection initialized"
+
+    Application.CalculateFull
+
+End Sub
+
+Public Sub {RibbonInitResource}(Control As IRibbonControl)
+
+    Dim result As Byte
+    result = RustyInitResources()
+
+    MsgBox "Resources initialized"
+
+    Application.CalculateFull
+
+End Sub
+
+Public Sub {RibbonDropResource}(Control As IRibbonControl)
+
+    Dim result As Byte
+    result = RustyDropResources()
+
+    MsgBox "Resources dropped"
+
+End Sub

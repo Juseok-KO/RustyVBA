@@ -1,9 +1,8 @@
 [package]
-name = "vba_script_generator"
+name = "vba_ribbon_creator"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 clap = { version = "4.6", features = ["derive"]}
-dll_finder.workspace = true
-vba_ribbon_creator.workspace = true
+zip = { version = "8.4" }
