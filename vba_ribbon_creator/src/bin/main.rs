@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use vba_ribbon_creator::{set_custom_ui, update_rels, write_to_zip};
+use vba_ribbon_creator::{set_custom_ui, update_content_type, update_rels, write_to_zip};
 
 #[derive(Parser, Debug)]
 #[command(about, long_about = None)]
@@ -28,6 +28,7 @@ fn main() {
     drop(archive);
 
     update_rels(&path_excel_w_ribbon).unwrap();
+    update_content_type(&path_excel_w_ribbon).unwrap();
     set_custom_ui(&path_excel_w_ribbon).unwrap();
 
     let mut new_zipped_file_dir = path_excel.to_path_buf();
